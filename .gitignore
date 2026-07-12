@@ -4,6 +4,7 @@
 .claude/settings.local.json
 *.claude
 .claude
+CLAUDE.MD
 
 # Python
 python-face-api/venv/

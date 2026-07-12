@@ -8,21 +8,21 @@ import base64
 app = Flask(__name__)
 CORS(app)
 
-# Store student data (usn and image path only)
+# Store student data (matric number and image path only)
 student_data = {}
 
-# Enroll a new student (usn, face image)
+# Enroll a new student (matric_number, face image)
 @app.route("/enroll", methods=["POST"])
 def enroll():
     data = request.get_json()
-    usn = data["usn"]
+    matric_number = data["matric_number"]
     image_data = data["image"].split(",")[1]
     image_bytes = base64.b64decode(image_data)
     np_arr = np.frombuffer(image_bytes, np.uint8)
     face_img = cv2.imdecode(np_arr, cv2.IMREAD_GRAYSCALE)
 
-    # Save face image in folder (name the folder by student usn)
-    student_folder = os.path.join("faces", usn)
+    # Save face image in folder (name the folder by student matric number)
+    student_folder = os.path.join("faces", matric_number)
     os.makedirs(student_folder, exist_ok=True)
 
     # Save image as a file in the student's folder
@@ -31,12 +31,12 @@ def enroll():
     img_path = os.path.join(student_folder, img_name)
     cv2.imwrite(img_path, face_img)
 
-    # Store student usn and image path in the student_data dictionary
-    student_data[usn] = {
+    # Store student matric number and image path in the student_data dictionary
+    student_data[matric_number] = {
         "image_path": img_path
     }
 
-    return jsonify({"message": f"Student {usn} enrolled successfully!"})
+    return jsonify({"message": f"Student {matric_number} enrolled successfully!"})
 
 # Train the model
 def train_model():
@@ -47,13 +47,13 @@ def train_model():
     current_label = 0
 
     # Loop through all subfolders in 'faces' and add student data
-    for person_usn in os.listdir("faces"):
-        person_folder = os.path.join("faces", person_usn)
+    for person_matric_number in os.listdir("faces"):
+        person_folder = os.path.join("faces", person_matric_number)
         if not os.path.isdir(person_folder):
             continue
 
-        if person_usn not in label_map:
-            label_map[person_usn] = current_label
+        if person_matric_number not in label_map:
+            label_map[person_matric_number] = current_label
             current_label += 1
 
         for img_file in os.listdir(person_folder):
@@ -65,7 +65,7 @@ def train_model():
                 continue
 
             faces.append(img)
-            labels.append(label_map[person_usn])
+            labels.append(label_map[person_matric_number])
 
     if len(faces) == 0:
         raise ValueError("No face images found for training.")
@@ -91,14 +91,14 @@ def recognize():
     for (x, y, w, h) in faces:
         face_img = gray[y:y+h, x:x+w]
         label, confidence = recognizer.predict(face_img)
-        usn = label_reverse_map.get(label, "Unknown")
+        matric_number = label_reverse_map.get(label, "Unknown")
 
         return jsonify({
-            "usn": usn,
+            "matric_number": matric_number,
             "confidence": int(confidence)
         })
 
-    return jsonify({"usn": "No face detected"})
+    return jsonify({"matric_number": "No face detected"})
 
 if __name__ == "__main__":
     app.run(port=5000)
