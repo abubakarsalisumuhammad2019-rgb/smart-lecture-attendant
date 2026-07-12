@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "./lib/supabaseClient";
+import { DEPARTMENTS_BY_FACULTY, getFacultyForDepartment } from "./lib/departments";
+import { getProgrammesForDepartment } from "./lib/programmes";
 
 const HOME_BY_ROLE = { admin: "/dashboard", lecturer: "/lecturer", student: "/student" };
 
 const EMPTY_FORM = {
-  username: "",
+  full_name: "",
   email: "",
   password: "",
   retype: "",
   matric_number: "",
   programme: "",
   department: "",
-  faculty: "",
 };
 
 const Signin = ({ classname }) => {
@@ -22,6 +23,12 @@ const Signin = ({ classname }) => {
   const [form, setForm] = useState(EMPTY_FORM);
 
   const updateForm = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  // Programme options depend on the chosen department, so switching department
+  // clears any previously selected programme that no longer applies.
+  const handleStudentDepartmentChange = (value) => {
+    setForm((f) => ({ ...f, department: value, programme: "" }));
+  };
 
   const switchMode = (mode) => {
     setAuthMode(mode);
@@ -40,7 +47,7 @@ const Signin = ({ classname }) => {
       alert("Passwords do not match!");
       return;
     }
-    if (!form.email || !form.username || !form.password) {
+    if (!form.email || !form.full_name || !form.password) {
       alert("Please fill in all required fields.");
       return;
     }
@@ -48,15 +55,20 @@ const Signin = ({ classname }) => {
       alert("Matric Number is required.");
       return;
     }
+    if (signupRole === "lecturer" && !form.department) {
+      alert("Department is required.");
+      return;
+    }
 
-    const metadata = { username: form.username, role: signupRole };
+    const metadata = { full_name: form.full_name, role: signupRole };
     if (signupRole === "student") {
       metadata.matric_number = form.matric_number;
       metadata.programme = form.programme;
       metadata.department = form.department;
+      metadata.faculty = getFacultyForDepartment(form.department);
     } else if (signupRole === "lecturer") {
       metadata.department = form.department;
-      metadata.faculty = form.faculty;
+      metadata.faculty = getFacultyForDepartment(form.department);
     }
 
     try {
@@ -264,12 +276,12 @@ const Signin = ({ classname }) => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 mb-4">
                     <div>
-                      <p className="mb-1 font-medium text-gray-500 text-sm">Username</p>
+                      <p className="mb-1 font-medium text-gray-500 text-sm">Full Name</p>
                       <input
-                        value={form.username}
-                        onChange={(e) => updateForm("username", e.target.value)}
+                        value={form.full_name}
+                        onChange={(e) => updateForm("full_name", e.target.value)}
                         className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
-                        placeholder="Enter your username"
+                        placeholder="Enter your full name"
                       />
                     </div>
                     <div>
@@ -295,42 +307,63 @@ const Signin = ({ classname }) => {
                           />
                         </div>
                         <div>
-                          <p className="mb-1 font-medium text-gray-500 text-sm">Programme</p>
-                          <input
-                            value={form.programme}
-                            onChange={(e) => updateForm("programme", e.target.value)}
-                            className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
-                            placeholder="e.g. BSc Computer Science"
-                          />
+                          <p className="mb-1 font-medium text-gray-500 text-sm">Department</p>
+                          <select
+                            value={form.department}
+                            onChange={(e) => handleStudentDepartmentChange(e.target.value)}
+                            className="w-full rounded-md border-2 border-gray-300 px-4 py-2 bg-white"
+                          >
+                            <option value="">Select department</option>
+                            {Object.entries(DEPARTMENTS_BY_FACULTY).map(([faculty, departments]) => (
+                              <optgroup key={faculty} label={faculty}>
+                                {departments.map((dept) => (
+                                  <option key={dept} value={dept}>{dept}</option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
                         </div>
                         <div className="sm:col-span-2">
-                          <p className="mb-1 font-medium text-gray-500 text-sm">Department</p>
-                          <input
-                            value={form.department}
-                            onChange={(e) => updateForm("department", e.target.value)}
-                            className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
-                            placeholder="e.g. Computer Science"
-                          />
+                          <p className="mb-1 font-medium text-gray-500 text-sm">Programme</p>
+                          <select
+                            value={form.programme}
+                            onChange={(e) => updateForm("programme", e.target.value)}
+                            disabled={!form.department}
+                            className="w-full rounded-md border-2 border-gray-300 px-4 py-2 bg-white disabled:bg-gray-100"
+                          >
+                            <option value="">{form.department ? "Select programme" : "Select a department first"}</option>
+                            {getProgrammesForDepartment(form.department).map((prog) => (
+                              <option key={prog} value={prog}>{prog}</option>
+                            ))}
+                          </select>
                         </div>
                       </>
                     ) : (
                       <>
                         <div>
                           <p className="mb-1 font-medium text-gray-500 text-sm">Department</p>
-                          <input
+                          <select
                             value={form.department}
                             onChange={(e) => updateForm("department", e.target.value)}
-                            className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
-                            placeholder="e.g. Computer Science"
-                          />
+                            className="w-full rounded-md border-2 border-gray-300 px-4 py-2 bg-white"
+                          >
+                            <option value="">Select department</option>
+                            {Object.entries(DEPARTMENTS_BY_FACULTY).map(([faculty, departments]) => (
+                              <optgroup key={faculty} label={faculty}>
+                                {departments.map((dept) => (
+                                  <option key={dept} value={dept}>{dept}</option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
                         </div>
                         <div>
                           <p className="mb-1 font-medium text-gray-500 text-sm">Faculty</p>
                           <input
-                            value={form.faculty}
-                            onChange={(e) => updateForm("faculty", e.target.value)}
-                            className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
-                            placeholder="e.g. Sciences"
+                            value={getFacultyForDepartment(form.department)}
+                            disabled
+                            className="w-full rounded-md border-2 border-gray-200 bg-gray-100 px-4 py-2 text-gray-500"
+                            placeholder="Auto-set from department"
                           />
                         </div>
                       </>

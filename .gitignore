@@ -4,7 +4,10 @@
 .claude/settings.local.json
 *.claude
 .claude
-CLAUDE.MD
+
+# Markdown docs -- keep only frontend/README.md tracked
+*.md
+!frontend/README.md
 
 # Python
 python-face-api/venv/

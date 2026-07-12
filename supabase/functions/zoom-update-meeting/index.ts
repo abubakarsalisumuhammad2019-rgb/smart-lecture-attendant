@@ -40,9 +40,12 @@ Deno.serve(async (req: Request) => {
       const { cancel_reason } = body;
       if (!cancel_reason) return json({ error: "cancel_reason_required" }, 400);
 
-      const zoomRes = await zoomFetch(`/meetings/${lecture.zoom_meeting_id}`, { method: "DELETE" });
-      if (!zoomRes.ok && zoomRes.status !== 404) {
-        return json({ error: "zoom_cancel_failed", detail: await zoomRes.text() }, 502);
+      // No Zoom meeting to cancel yet if the facilitator hasn't set one up.
+      if (lecture.zoom_meeting_id) {
+        const zoomRes = await zoomFetch(`/meetings/${lecture.zoom_meeting_id}`, { method: "DELETE" });
+        if (!zoomRes.ok && zoomRes.status !== 404) {
+          return json({ error: "zoom_cancel_failed", detail: await zoomRes.text() }, 502);
+        }
       }
 
       const { data: updated, error: updateErr } = await service
@@ -62,13 +65,17 @@ Deno.serve(async (req: Request) => {
         return json({ error: "missing_reschedule_fields" }, 400);
       }
 
-      const zoomRes = await zoomFetch(`/meetings/${lecture.zoom_meeting_id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ start_time, duration: duration_minutes, timezone: "UTC" }),
-      });
+      // No Zoom meeting to reschedule yet if the facilitator hasn't set one up
+      // -- this is a pure schedule change until then.
+      if (lecture.zoom_meeting_id) {
+        const zoomRes = await zoomFetch(`/meetings/${lecture.zoom_meeting_id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ start_time, duration: duration_minutes, timezone: "UTC" }),
+        });
 
-      if (!zoomRes.ok) {
-        return json({ error: "zoom_reschedule_failed", detail: await zoomRes.text() }, 502);
+        if (!zoomRes.ok) {
+          return json({ error: "zoom_reschedule_failed", detail: await zoomRes.text() }, 502);
+        }
       }
 
       const endTime = new Date(new Date(start_time).getTime() + duration_minutes * 60_000).toISOString();

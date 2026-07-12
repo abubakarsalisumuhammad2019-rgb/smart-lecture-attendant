@@ -4,6 +4,7 @@ import './App.css';
 import { AuthProvider } from './lib/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminLayout } from './components/AdminLayout';
+import { LecturerLayout } from './components/LecturerLayout';
 import Front from './frontpage';
 import Dashboard from './dashboard';
 import Addstudent from './Addstudent';
@@ -15,6 +16,10 @@ import LectureImport from './admin/LectureImport';
 import Courses from './admin/Courses';
 import Users from './admin/Users';
 import SemesterSettings from './admin/SemesterSettings';
+import LecturerDashboard from './lecturer/Dashboard';
+import LectureRoster from './lecturer/LectureRoster';
+import MyCourses from './lecturer/MyCourses';
+import LecturerSettings from './lecturer/LecturerSettings';
 
 function ComingSoon({ label }) {
   return (
@@ -53,9 +58,15 @@ function App() {
             </Route>
           </Route>
 
-          {/* Lecturer (Phase 2) */}
+          {/* Lecturer */}
           <Route element={<ProtectedRoute allowedRoles={['lecturer']} />}>
-            <Route path="/lecturer" element={<ComingSoon label="Lecturer Panel" />} />
+            <Route element={<LecturerLayout />}>
+              <Route path="/lecturer" element={<Navigate to="/lecturer/dashboard" replace />} />
+              <Route path="/lecturer/dashboard" element={<LecturerDashboard />} />
+              <Route path="/lecturer/lectures/:lectureId/roster" element={<LectureRoster />} />
+              <Route path="/lecturer/courses" element={<MyCourses />} />
+              <Route path="/lecturer/settings" element={<LecturerSettings />} />
+            </Route>
           </Route>
 
           {/* Student (Phase 3) */}

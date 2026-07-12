@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { LectureForm } from './LectureForm';
-import { RescheduleModal } from './RescheduleModal';
-import { CancelModal } from './CancelModal';
+import { LectureForm } from '../shared/LectureForm';
+import { RescheduleModal } from '../shared/RescheduleModal';
+import { CancelModal } from '../shared/CancelModal';
 
 export default function Lectures() {
   const [lectures, setLectures] = useState([]);
@@ -92,12 +92,13 @@ export default function Lectures() {
                 <th className="text-left px-4 py-3">Facilitator</th>
                 <th className="text-left px-4 py-3">Start</th>
                 <th className="text-left px-4 py-3">Status</th>
+                <th className="text-left px-4 py-3">Zoom</th>
                 <th className="text-left px-4 py-3 rounded-r-lg">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" className="text-center py-4 text-gray-500">Loading...</td></tr>
+                <tr><td colSpan="7" className="text-center py-4 text-gray-500">Loading...</td></tr>
               ) : lectures.length > 0 ? (
                 lectures.map((lecture) => (
                   <tr key={lecture.id} className="hover:bg-[#f0f4f8]">
@@ -115,6 +116,13 @@ export default function Lectures() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
+                      {lecture.meeting_web_url ? (
+                        <span className="text-green-600">Ready</span>
+                      ) : (
+                        <span className="text-orange-500">Pending setup</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       {lecture.status !== 'cancelled' && (
                         <div className="flex gap-2">
                           <button onClick={() => setReschedulingLecture(lecture)} className="text-blue-600 hover:underline text-xs">Reschedule</button>
@@ -125,7 +133,7 @@ export default function Lectures() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan="6" className="text-center py-4 text-gray-500">No lectures yet.</td></tr>
+                <tr><td colSpan="7" className="text-center py-4 text-gray-500">No lectures yet.</td></tr>
               )}
             </tbody>
           </table>

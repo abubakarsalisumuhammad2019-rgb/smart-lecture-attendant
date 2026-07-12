@@ -1,18 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import Papa from 'papaparse';
-import { motion } from 'motion/react';
-import { supabase } from '../lib/supabaseClient';
-import { deriveLevelFromCode } from '../lib/courseHelpers';
+import { motion } from "motion/react";
+import Papa from "papaparse";
+import { useEffect, useState } from "react";
+import { deriveLevelFromCode } from "../lib/courseHelpers";
+import { supabase } from "../lib/supabaseClient";
 
 const LEVELS = [100, 200, 300, 400, 500, 600];
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
-  const [activeSession, setActiveSession] = useState('');
-  const [activeSemester, setActiveSemester] = useState('');
+  const [activeSession, setActiveSession] = useState("");
+  const [activeSemester, setActiveSemester] = useState("");
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
-  const [newCourse, setNewCourse] = useState({ course_code: '', course_title: '', credit_units: '', programme: '', level: '' });
+  const [message, setMessage] = useState("");
+  const [newCourse, setNewCourse] = useState({
+    course_code: "",
+    course_title: "",
+    credit_units: "",
+    programme: "",
+    level: "",
+  });
   const [levelTouched, setLevelTouched] = useState(false);
   const [importResults, setImportResults] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -20,12 +26,18 @@ export default function Courses() {
   const load = async () => {
     setLoading(true);
     const [settingsRes, coursesRes] = await Promise.all([
-      supabase.from('app_settings').select('*'),
-      supabase.from('courses').select('*').order('academic_session', { ascending: false }).order('course_code'),
+      supabase.from("app_settings").select("*"),
+      supabase
+        .from("courses")
+        .select("*")
+        .order("academic_session", { ascending: false })
+        .order("course_code"),
     ]);
-    const map = Object.fromEntries((settingsRes.data || []).map((row) => [row.key, row.value]));
-    setActiveSession(map.active_academic_session || '');
-    setActiveSemester(map.active_semester || '');
+    const map = Object.fromEntries(
+      (settingsRes.data || []).map((row) => [row.key, row.value]),
+    );
+    setActiveSession(map.active_academic_session || "");
+    setActiveSemester(map.active_semester || "");
     setCourses(coursesRes.data || []);
     setLoading(false);
   };
@@ -39,29 +51,41 @@ export default function Courses() {
       ...c,
       course_code: value,
       // Auto-fill level from the code unless the admin has manually picked one.
-      level: levelTouched ? c.level : (deriveLevelFromCode(value) ?? ''),
+      level: levelTouched ? c.level : (deriveLevelFromCode(value) ?? ""),
     }));
   };
 
   const handleAddCourse = async () => {
     if (!newCourse.course_code.trim() || !newCourse.course_title.trim()) {
-      setMessage('Course code and title are required.');
+      setMessage("Course code and title are required.");
       return;
     }
-    const { error } = await supabase.from('courses').insert({
+    const { error } = await supabase.from("courses").insert({
       course_code: newCourse.course_code.trim().toUpperCase(),
       course_title: newCourse.course_title.trim(),
-      credit_units: newCourse.credit_units ? Number(newCourse.credit_units) : null,
+      credit_units: newCourse.credit_units
+        ? Number(newCourse.credit_units)
+        : null,
       programme: newCourse.programme || null,
       level: newCourse.level ? Number(newCourse.level) : null,
       semester: activeSemester,
       academic_session: activeSession,
     });
     if (error) {
-      setMessage(error.code === '23505' ? 'That course code already exists for the active session/semester.' : error.message);
+      setMessage(
+        error.code === "23505"
+          ? "That course code already exists for the active session/semester."
+          : error.message,
+      );
     } else {
-      setMessage('Course added.');
-      setNewCourse({ course_code: '', course_title: '', credit_units: '', programme: '', level: '' });
+      setMessage("Course added.");
+      setNewCourse({
+        course_code: "",
+        course_title: "",
+        credit_units: "",
+        programme: "",
+        level: "",
+      });
       setLevelTouched(false);
       load();
     }
@@ -78,7 +102,15 @@ export default function Courses() {
         setImporting(true);
         setImportResults(null);
 
-        const existingCodes = new Set(courses.filter((c) => c.academic_session === activeSession && c.semester === activeSemester).map((c) => c.course_code));
+        const existingCodes = new Set(
+          courses
+            .filter(
+              (c) =>
+                c.academic_session === activeSession &&
+                c.semester === activeSemester,
+            )
+            .map((c) => c.course_code),
+        );
         const seenInBatch = new Set();
         const results = { created: 0, skipped: 0, failed: [] };
 
@@ -86,7 +118,10 @@ export default function Courses() {
           const code = row.course_code?.trim()?.toUpperCase();
           const title = row.course_title?.trim();
           if (!code || !title) {
-            results.failed.push({ code: code || '(blank)', reason: 'missing course_code or course_title' });
+            results.failed.push({
+              code: code || "(blank)",
+              reason: "missing course_code or course_title",
+            });
             continue;
           }
           if (existingCodes.has(code) || seenInBatch.has(code)) {
@@ -95,7 +130,7 @@ export default function Courses() {
           }
           seenInBatch.add(code);
 
-          const { error } = await supabase.from('courses').insert({
+          const { error } = await supabase.from("courses").insert({
             course_code: code,
             course_title: title,
             credit_units: row.credit_units ? Number(row.credit_units) : null,
@@ -118,7 +153,7 @@ export default function Courses() {
       },
     });
 
-    e.target.value = '';
+    e.target.value = "";
   };
 
   return (
@@ -144,18 +179,29 @@ export default function Courses() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <h2 className="text-gray-900 font-semibold">Add a Course</h2>
           <label className="text-sm font-medium text-blue-600 hover:underline cursor-pointer w-full sm:w-auto text-center sm:text-left whitespace-nowrap">
-            {importing ? 'Importing…' : 'Bulk import from CSV'}
-            <input type="file" accept=".csv" onChange={handleImportFile} disabled={importing} className="hidden" />
+            {importing ? "Importing…" : "Bulk import from CSV"}
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImportFile}
+              disabled={importing}
+              className="hidden"
+            />
           </label>
         </div>
 
         {importResults && (
           <div className="mb-4 text-sm bg-gray-50 rounded-xl p-3">
-            <p className="font-medium text-gray-700">{importResults.created} created, {importResults.skipped} already existed (skipped).</p>
+            <p className="font-medium text-gray-700">
+              {importResults.created} created, {importResults.skipped} already
+              existed (skipped).
+            </p>
             {importResults.failed.length > 0 && (
               <ul className="mt-1 text-red-500 text-xs list-disc list-inside">
                 {importResults.failed.map((f, idx) => (
-                  <li key={idx}>{f.code}: {f.reason}</li>
+                  <li key={idx}>
+                    {f.code}: {f.reason}
+                  </li>
                 ))}
               </ul>
             )}
@@ -163,13 +209,16 @@ export default function Courses() {
         )}
 
         <p className="text-xs text-gray-400 mb-4">
-          CSV columns: course_code, course_title, credit_units, programme, level (level is auto-derived from the code if omitted).
+          CSV columns: course_code, course_title, credit_units, programme, level
+          (level is auto-derived from the code if omitted).
         </p>
 
         <div className="grid grid-cols-1 gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Course Code *</label>
+              <label className="text-sm font-medium text-gray-700">
+                Course Code *
+              </label>
               <input
                 value={newCourse.course_code}
                 onChange={(e) => handleCourseCodeChange(e.target.value)}
@@ -178,10 +227,14 @@ export default function Courses() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Credit Units</label>
+              <label className="text-sm font-medium text-gray-700">
+                Credit Units
+              </label>
               <input
                 value={newCourse.credit_units}
-                onChange={(e) => setNewCourse({ ...newCourse, credit_units: e.target.value })}
+                onChange={(e) =>
+                  setNewCourse({ ...newCourse, credit_units: e.target.value })
+                }
                 placeholder="e.g. 2"
                 type="number"
                 className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
@@ -190,20 +243,28 @@ export default function Courses() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Course Title *</label>
+            <label className="text-sm font-medium text-gray-700">
+              Course Title *
+            </label>
             <input
               value={newCourse.course_title}
-              onChange={(e) => setNewCourse({ ...newCourse, course_title: e.target.value })}
+              onChange={(e) =>
+                setNewCourse({ ...newCourse, course_title: e.target.value })
+              }
               placeholder="e.g. Database Design and Management"
               className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Programme</label>
+            <label className="text-sm font-medium text-gray-700">
+              Programme
+            </label>
             <input
               value={newCourse.programme}
-              onChange={(e) => setNewCourse({ ...newCourse, programme: e.target.value })}
+              onChange={(e) =>
+                setNewCourse({ ...newCourse, programme: e.target.value })
+              }
               placeholder="e.g. BSc Computer Science"
               className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
             />
@@ -213,27 +274,46 @@ export default function Courses() {
             <label className="text-sm font-medium text-gray-700">Level</label>
             <select
               value={newCourse.level}
-              onChange={(e) => { setLevelTouched(true); setNewCourse({ ...newCourse, level: e.target.value }); }}
+              onChange={(e) => {
+                setLevelTouched(true);
+                setNewCourse({ ...newCourse, level: e.target.value });
+              }}
               className="w-full h-11 px-3 border border-gray-200 rounded-xl text-sm"
             >
               <option value="">Select level</option>
               {LEVELS.map((lvl) => (
-                <option key={lvl} value={lvl}>{lvl} Level</option>
+                <option key={lvl} value={lvl}>
+                  {lvl} Level
+                </option>
               ))}
             </select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Academic Session</label>
-              <input value={activeSession} disabled className="w-full h-11 px-3 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-500" />
+              <label className="text-sm font-medium text-gray-700">
+                Academic Session
+              </label>
+              <input
+                value={activeSession}
+                disabled
+                className="w-full h-11 px-3 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-500"
+              />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Semester</label>
-              <input value={activeSemester} disabled className="w-full h-11 px-3 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-500" />
+              <label className="text-sm font-medium text-gray-700">
+                Semester
+              </label>
+              <input
+                value={activeSemester}
+                disabled
+                className="w-full h-11 px-3 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-500"
+              />
             </div>
           </div>
-          <p className="text-[11px] text-gray-400 -mt-2">Change session / semester in Admin → Settings.</p>
+          <p className="text-[11px] text-gray-400 -mt-2">
+            Change session / semester in Admin → Settings.
+          </p>
 
           <button
             onClick={handleAddCourse}
@@ -261,19 +341,32 @@ export default function Courses() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" className="text-center py-4 text-gray-500">Loading…</td></tr>
-              ) : courses.length > 0 ? courses.map((c) => (
-                <tr key={c.id} className="hover:bg-[#f0f4f8] transition-colors duration-200">
-                  <td className="px-4 py-2">{c.course_code}</td>
-                  <td className="px-4 py-2">{c.course_title}</td>
-                  <td className="px-4 py-2">{c.credit_units ?? '—'}</td>
-                  <td className="px-4 py-2">{c.programme ?? '—'}</td>
-                  <td className="px-4 py-2">{c.level ?? '—'}</td>
-                  <td className="px-4 py-2">{c.academic_session}</td>
-                  <td className="px-4 py-2">{c.semester}</td>
+                <tr>
+                  <td colSpan="7" className="text-center py-4 text-gray-500">
+                    Loading…
+                  </td>
                 </tr>
-              )) : (
-                <tr><td colSpan="7" className="text-center py-4 text-gray-500">No courses yet.</td></tr>
+              ) : courses.length > 0 ? (
+                courses.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="hover:bg-[#f0f4f8] transition-colors duration-200"
+                  >
+                    <td className="px-4 py-2">{c.course_code}</td>
+                    <td className="px-4 py-2">{c.course_title}</td>
+                    <td className="px-4 py-2">{c.credit_units ?? ""}</td>
+                    <td className="px-4 py-2">{c.programme ?? ""}</td>
+                    <td className="px-4 py-2">{c.level ?? ""}</td>
+                    <td className="px-4 py-2">{c.academic_session}</td>
+                    <td className="px-4 py-2">{c.semester}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="text-center py-4 text-gray-500">
+                    No courses yet.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
