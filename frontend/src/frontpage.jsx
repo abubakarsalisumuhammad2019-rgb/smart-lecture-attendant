@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import { supabase } from "./lib/supabaseClient";
+import { FACE_API_URL } from "./lib/faceApi";
 
 const Front = () => {
   const [recognizedName, setRecognizedName] = useState("Matric Number will appear here");
@@ -44,7 +45,7 @@ const Front = () => {
     const imageData = canvas.toDataURL("image/jpeg");
 
     try {
-      const response = await axios.post("http://localhost:5000/recognize", { image: imageData });
+      const response = await axios.post(`${FACE_API_URL}/recognize`, { image: imageData });
       const matricNumber = response.data.matric_number;
 
       setRecognizedName(matricNumber);

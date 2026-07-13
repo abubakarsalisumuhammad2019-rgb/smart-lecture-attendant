@@ -5,6 +5,8 @@ import { AuthProvider } from './lib/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminLayout } from './components/AdminLayout';
 import { LecturerLayout } from './components/LecturerLayout';
+import { StudentLayout } from './components/StudentLayout';
+import { StudentGate } from './components/StudentGate';
 import Front from './frontpage';
 import Dashboard from './dashboard';
 import Addstudent from './Addstudent';
@@ -18,19 +20,13 @@ import Users from './admin/Users';
 import SemesterSettings from './admin/SemesterSettings';
 import LecturerDashboard from './lecturer/Dashboard';
 import LectureRoster from './lecturer/LectureRoster';
-import MyCourses from './lecturer/MyCourses';
+import LecturerMyCourses from './lecturer/MyCourses';
 import LecturerSettings from './lecturer/LecturerSettings';
-
-function ComingSoon({ label }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-split p-4">
-      <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-        <h1 className="text-xl font-bold text-gray-900 mb-2">{label}</h1>
-        <p className="text-sm text-gray-600">This part of the app is coming in a later phase.</p>
-      </div>
-    </div>
-  );
-}
+import StudentOnboarding from './student/Onboarding';
+import StudentDashboard from './student/Dashboard';
+import StudentMyCourses from './student/MyCourses';
+import StudentSettings from './student/Settings';
+import JoinLecture from './student/JoinLecture';
 
 function App() {
   return (
@@ -64,14 +60,23 @@ function App() {
               <Route path="/lecturer" element={<Navigate to="/lecturer/dashboard" replace />} />
               <Route path="/lecturer/dashboard" element={<LecturerDashboard />} />
               <Route path="/lecturer/lectures/:lectureId/roster" element={<LectureRoster />} />
-              <Route path="/lecturer/courses" element={<MyCourses />} />
+              <Route path="/lecturer/courses" element={<LecturerMyCourses />} />
               <Route path="/lecturer/settings" element={<LecturerSettings />} />
             </Route>
           </Route>
 
-          {/* Student (Phase 3) */}
+          {/* Student */}
           <Route element={<ProtectedRoute allowedRoles={['student']} />}>
-            <Route path="/student" element={<ComingSoon label="Student Panel" />} />
+            <Route path="/student/onboarding" element={<StudentOnboarding />} />
+            <Route element={<StudentGate />}>
+              <Route element={<StudentLayout />}>
+                <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+                <Route path="/student/dashboard" element={<StudentDashboard />} />
+                <Route path="/student/courses" element={<StudentMyCourses />} />
+                <Route path="/student/settings" element={<StudentSettings />} />
+                <Route path="/student/lectures/:lectureId/join" element={<JoinLecture />} />
+              </Route>
+            </Route>
           </Route>
         </Routes>
       </Router>

@@ -1,6 +1,7 @@
 import "./App.css";
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabaseClient';
+import { FACE_API_URL } from './lib/faceApi';
 
 const Addstudent = () => {
   const videoRef = useRef(null);
@@ -71,7 +72,7 @@ const Addstudent = () => {
       const imageData = canvas.toDataURL('image/jpeg');
 
       try {
-        const response = await fetch('http://localhost:5000/enroll', {
+        const response = await fetch(`${FACE_API_URL}/enroll`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ matric_number: foundStudent.matric_number, image: imageData })
