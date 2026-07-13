@@ -7,7 +7,6 @@ import { AdminLayout } from './components/AdminLayout';
 import { LecturerLayout } from './components/LecturerLayout';
 import { StudentLayout } from './components/StudentLayout';
 import { StudentGate } from './components/StudentGate';
-import Front from './frontpage';
 import Dashboard from './dashboard';
 import Addstudent from './Addstudent';
 import Enrolled from './Enrolled';
@@ -35,7 +34,6 @@ function App() {
         <Routes>
           {/* Public */}
           <Route path="/" element={<Navigate to="/Signin" replace />} />
-          <Route path="/kiosk" element={<Front />} />
           <Route path="/Signin" element={<Signin />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
 

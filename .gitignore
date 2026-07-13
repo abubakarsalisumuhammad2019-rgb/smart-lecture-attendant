@@ -9,11 +9,6 @@
 *.md
 !frontend/README.md
 
-# Python
-python-face-api/venv/
-python-face-api/__pycache__/
-python-face-api/faces/
-
 # Logs
 logs
 *.log

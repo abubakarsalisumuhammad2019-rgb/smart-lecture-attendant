@@ -1,7 +1,7 @@
 import "./App.css";
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabaseClient';
-import { FACE_API_URL } from './lib/faceApi';
+import { getFunctionErrorMessage } from './lib/functionError';
 
 const Addstudent = () => {
   const videoRef = useRef(null);
@@ -71,31 +71,26 @@ const Addstudent = () => {
 
       const imageData = canvas.toDataURL('image/jpeg');
 
-      try {
-        const response = await fetch(`${FACE_API_URL}/enroll`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ matric_number: foundStudent.matric_number, image: imageData })
-        });
+      const { error: fnError } = await supabase.functions.invoke('face-enroll', {
+        body: { matric_number: foundStudent.matric_number, image: imageData },
+      });
 
-        const result = await response.json();
-        alert(result.message);
-
-        const { error } = await supabase
-          .from('profiles')
-          .update({ face_enrolled: true, face_enrolled_at: new Date().toISOString() })
-          .eq('id', foundStudent.id);
-
-        if (error) {
-          console.error('Face enrollment status update failed:', error.message);
-        }
-
-        alert('Face enrolled successfully!');
-        setFoundStudent({ ...foundStudent, face_enrolled: true });
-      } catch (err) {
-        console.error('Error sending data to backend:', err);
-        alert("Failed to enroll face.");
+      if (fnError) {
+        alert(await getFunctionErrorMessage(fnError, 'Failed to enroll face.'));
+        return;
       }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ face_enrolled: true, face_enrolled_at: new Date().toISOString() })
+        .eq('id', foundStudent.id);
+
+      if (error) {
+        console.error('Face enrollment status update failed:', error.message);
+      }
+
+      alert('Face enrolled successfully!');
+      setFoundStudent({ ...foundStudent, face_enrolled: true });
     }
   };
 

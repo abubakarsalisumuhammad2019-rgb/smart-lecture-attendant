@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
-import { FACE_API_URL } from '../lib/faceApi';
 import { getFunctionErrorMessage } from '../lib/functionError';
 import { WebcamCapture } from '../shared/WebcamCapture';
 
@@ -45,17 +44,13 @@ export default function JoinLecture() {
 
     setVerifying(true);
 
-    let verifyResult;
-    try {
-      const res = await fetch(`${FACE_API_URL}/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matric_number: profile.matric_number, image }),
-      });
-      verifyResult = await res.json();
-    } catch (err) {
+    const { data: verifyResult, error: verifyFnError } = await supabase.functions.invoke('face-verify', {
+      body: { matric_number: profile.matric_number, image },
+    });
+
+    if (verifyFnError) {
       setVerifying(false);
-      setError('Could not reach the face verification service. Try again in a moment.');
+      setError(await getFunctionErrorMessage(verifyFnError, 'Could not reach the face verification service. Try again in a moment.'));
       return;
     }
 

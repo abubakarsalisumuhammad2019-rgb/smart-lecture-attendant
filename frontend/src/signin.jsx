@@ -402,11 +402,6 @@ const Signin = ({ classname }) => {
               )}
             </AnimatePresence>
           )}
-
-          <p className="mt-6 text-center text-xs text-gray-400">
-            Staff running the physical attendance kiosk?{' '}
-            <a href="/kiosk" className="underline hover:text-gray-600">Open kiosk mode</a>
-          </p>
         </div>
       </div>
     </div>

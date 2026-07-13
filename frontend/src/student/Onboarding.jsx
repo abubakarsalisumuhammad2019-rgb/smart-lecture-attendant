@@ -2,14 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
-import { FACE_API_URL } from '../lib/faceApi';
+import { getFunctionErrorMessage } from '../lib/functionError';
 import { extractCourseCodesFromSlip } from '../lib/slipParser';
 import { WebcamCapture } from '../shared/WebcamCapture';
-
-const FACE_ERROR_MESSAGES = {
-  no_face_detected: 'No face detected -- make sure your face is clearly visible and try again.',
-  multiple_faces_detected: "More than one face detected -- make sure you're alone in frame and try again.",
-};
 
 export default function Onboarding() {
   const { profile } = useAuth();
@@ -139,22 +134,13 @@ export default function Onboarding() {
 
     setEnrollingFace(true);
 
-    let result;
-    try {
-      const res = await fetch(`${FACE_API_URL}/enroll`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matric_number: profile.matric_number, image }),
-      });
-      result = await res.json();
-      if (!res.ok) {
-        setEnrollingFace(false);
-        setFaceError(FACE_ERROR_MESSAGES[result.error] || 'Could not enroll your face -- try again.');
-        return;
-      }
-    } catch (err) {
+    const { error: fnError } = await supabase.functions.invoke('face-enroll', {
+      body: { matric_number: profile.matric_number, image },
+    });
+
+    if (fnError) {
       setEnrollingFace(false);
-      setFaceError('Could not reach the face enrollment service. Try again in a moment.');
+      setFaceError(await getFunctionErrorMessage(fnError, 'Could not enroll your face -- try again.'));
       return;
     }
 
