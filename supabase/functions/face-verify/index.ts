@@ -1,23 +1,27 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { handleCorsPreflight, json } from "./_shared/cors.ts";
 import { getServiceClient, getCallerProfile } from "./_shared/authContext.ts";
-import { luxandFetch, hasLuxandKey, jpegDataUrlToBlob, parseLuxandResponse } from "./_shared/luxand.ts";
+import { hasPyFaceConfig, pyFaceFetch } from "./_shared/pythonFaceApi.ts";
 
-// Luxand's similarity score is 0-100, higher = better match (opposite of the
-// old LBPH distance metric). Starting point only -- needs calibration against
-// real capture conditions, same as the LBPH threshold did.
-const THRESHOLD = Number(Deno.env.get("LUXAND_VERIFY_THRESHOLD") ?? 90);
+// LBPH distance -- lower is a better match (opposite of Luxand's 0-100
+// higher-is-better scale it replaces). Starting point only, needs
+// calibration against real capture conditions -- same situation every prior
+// threshold in this codebase has been in before real-world tuning.
+const rawThreshold = Number(Deno.env.get("FACE_VERIFY_THRESHOLD"));
+const THRESHOLD = Number.isFinite(rawThreshold) ? rawThreshold : 70;
 
-// Student-only. The actual attendance-verification gate before JoinLecture.jsx
-// redirects to Zoom. Unlike the old Flask /verify, the identity being checked
-// is derived from the caller's own JWT-resolved profile, not a client-supplied
-// body field -- a logged-in student can no longer claim to be someone else.
+// Student-only. Identity is derived from the caller's own JWT-resolved
+// profile, not a client-supplied body field -- a logged-in student can't
+// claim to verify as someone else. caller.matric_number (never client
+// input) tells the Python service which student's enrolled photos to
+// compare against -- the actual accept/reject decision (THRESHOLD) is made
+// here, not in the Python service, so it's tunable without a redeploy.
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
 
   try {
-    if (!hasLuxandKey()) return json({ error: "luxand_key_not_configured" }, 500);
+    if (!hasPyFaceConfig()) return json({ error: "face_api_not_configured" }, 500);
 
     const service = getServiceClient();
     const caller = await getCallerProfile(req, service);
@@ -28,40 +32,19 @@ Deno.serve(async (req: Request) => {
     const { image } = body;
     if (!image) return json({ error: "missing_fields" }, 400);
 
-    if (!caller.luxand_person_id) {
-      return json({ verified: false, confidence: null, threshold: THRESHOLD, reason: "not_enrolled" }, 200);
+    const { ok, data, raw } = await pyFaceFetch("/verify", { matric_number: caller.matric_number, image });
+
+    if (!ok) {
+      return json({ error: data?.error ?? "face_api_verify_failed", detail: data?.detail ?? raw }, 502);
     }
 
-    const form = new FormData();
-    form.append("photo", jpegDataUrlToBlob(image), "capture.jpg");
-
-    const res = await luxandFetch(`/photo/verify/${caller.luxand_person_id}`, { method: "POST", body: form });
-    const { data, raw } = await parseLuxandResponse(res);
-
-    if (!data) {
-      return json({ error: "luxand_unexpected_response", detail: raw }, 502);
+    if (data.reason) {
+      return json({ verified: false, confidence: null, threshold: THRESHOLD, reason: data.reason }, 200);
     }
 
-    // status:"failure" here is a normal, expected outcome (e.g. no face in the
-    // submitted frame) -- not a service error, so it maps to a 200 "not
-    // verified" response like any other rejection, not a 502.
-    if (data.status === "failure") {
-      return json({ verified: false, confidence: null, threshold: THRESHOLD, reason: "no_face_detected" }, 200);
-    }
-
-    // Field name unconfirmed against Luxand's real reference docs -- try the
-    // plausible candidates. If none present, treat as "no face" rather than a
-    // silent false-positive/negative.
-    const rawScore = data.probability ?? data.confidence ?? data.similarity ?? data.score;
-    if (rawScore === undefined) {
-      return json({ verified: false, confidence: null, threshold: THRESHOLD, reason: "no_face_detected" }, 200);
-    }
-
-    // Normalize to a 0-100 scale in case Luxand returns a 0-1 fraction.
-    const confidence = rawScore <= 1 ? rawScore * 100 : rawScore;
-    const verified = confidence >= THRESHOLD;
-
-    return json({ verified, confidence, threshold: THRESHOLD }, 200);
+    const distance = data.distance;
+    const verified = typeof distance === "number" && distance <= THRESHOLD;
+    return json({ verified, confidence: distance, threshold: THRESHOLD }, 200);
   } catch (err) {
     return json({ error: "internal_error", detail: String(err) }, 500);
   }

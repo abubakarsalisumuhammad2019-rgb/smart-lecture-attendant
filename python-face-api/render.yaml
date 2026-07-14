@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: smart-lecture-face-api
+    runtime: python
+    plan: free
+    rootDir: python-face-api
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn recognize_api:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    envVars:
+      - key: FACE_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
