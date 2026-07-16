@@ -32,38 +32,70 @@ Deno.serve(async (req: Request) => {
       return json({ error: "course_not_found" }, 404);
     }
 
-    const { data: assignment } = await service
+    const { data: assignment, error: assignmentErr } = await service
       .from("lecturer_courses")
       .select("id")
       .eq("lecturer_id", facilitator_id)
       .eq("course_id", course_id)
+      .eq("academic_session", course.academic_session)
       .maybeSingle();
 
+    if (assignmentErr) {
+      return json({ error: "assignment_lookup_failed", detail: assignmentErr.message }, 500);
+    }
     if (!assignment) {
       return json({ error: "facilitator_not_assigned_to_course" }, 400);
     }
 
     const endTime = new Date(new Date(start_time).getTime() + duration_minutes * 60_000).toISOString();
 
-    const { data: lecture, error: insertErr } = await service
+    // Upsert by natural key (course + facilitator + start_time) rather than a
+    // plain insert -- re-running a bulk import over data that's already been
+    // imported once (e.g. a corrected CSV) updates the existing lecture in
+    // place instead of erroring or creating a duplicate. Also resets status
+    // back to "scheduled" so a previously cancelled/rescheduled row imported
+    // again reflects the CSV as the source of truth.
+    const { data: existing } = await service
       .from("lectures")
-      .insert({
-        course_id,
-        facilitator_id,
-        topic,
-        venue: venue ?? null,
-        meeting_platform: "zoom",
-        start_time,
-        end_time: endTime,
-        status: "scheduled",
-        semester: course.semester,
-        academic_session: course.academic_session,
-      })
-      .select()
-      .single();
+      .select("id")
+      .eq("course_id", course_id)
+      .eq("facilitator_id", facilitator_id)
+      .eq("start_time", start_time)
+      .maybeSingle();
 
-    if (insertErr) {
-      return json({ error: "lecture_insert_failed", detail: insertErr.message }, 500);
+    const { data: lecture, error: writeErr } = existing
+      ? await service
+          .from("lectures")
+          .update({
+            topic,
+            venue: venue ?? null,
+            end_time: endTime,
+            status: "scheduled",
+            cancel_reason: null,
+            rescheduled_from: null,
+          })
+          .eq("id", existing.id)
+          .select()
+          .single()
+      : await service
+          .from("lectures")
+          .insert({
+            course_id,
+            facilitator_id,
+            topic,
+            venue: venue ?? null,
+            meeting_platform: "zoom",
+            start_time,
+            end_time: endTime,
+            status: "scheduled",
+            semester: course.semester,
+            academic_session: course.academic_session,
+          })
+          .select()
+          .single();
+
+    if (writeErr) {
+      return json({ error: "lecture_write_failed", detail: writeErr.message }, 500);
     }
 
     return json({ lecture }, 200);

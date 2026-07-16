@@ -123,12 +123,15 @@ export default function Lectures() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {lecture.status !== 'cancelled' && (
-                        <div className="flex gap-2">
-                          <button onClick={() => setReschedulingLecture(lecture)} className="text-blue-600 hover:underline text-xs">Reschedule</button>
-                          <button onClick={() => setCancelingLecture(lecture)} className="text-red-500 hover:underline text-xs">Cancel</button>
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        <Link to={`/admin/lectures/${lecture.id}/roster`} className="text-blue-600 hover:underline text-xs">Roster</Link>
+                        {lecture.status !== 'cancelled' && (
+                          <>
+                            <button onClick={() => setReschedulingLecture(lecture)} className="text-blue-600 hover:underline text-xs">Reschedule</button>
+                            <button onClick={() => setCancelingLecture(lecture)} className="text-red-500 hover:underline text-xs">Cancel</button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

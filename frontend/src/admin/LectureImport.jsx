@@ -7,7 +7,14 @@ import { supabase } from "../lib/supabaseClient";
 const REQUIRED_HELP =
   "CSV columns: course_code, course_title, credit_units, programme, level, facilitator_email, facilitator_name, start_time, end_time. " +
   "Courses and lecturers that don't exist yet are created automatically (course_title / facilitator_name are only required for rows introducing a new one). " +
-  "The lecture's displayed topic is derived from the course automatically. This only schedules the lectures -- each facilitator sets up their own Zoom session from their lecture list.";
+  "Re-importing a course_code or email that already exists updates its stored details (title/units/programme/level, or name/faculty/department) to match this CSV. " +
+  "The lecture's displayed topic is derived from the course automatically. This only schedules the lectures -- each facilitator sets up their own Zoom session from their lecture list. " +
+  "New lecturer accounts are created with the default password 123456 and no email confirmation needed -- lecturers should change it after signing in.";
+
+// Matches admin/Users.jsx's own bulk-lecturer-import convention -- a known,
+// shared default (rather than an unrecoverable random password) so an admin
+// can actually log in as a freshly bulk-imported lecturer to test/verify.
+const DEFAULT_BULK_PASSWORD = "123456";
 
 export default function LectureImport() {
   const [rows, setRows] = useState([]);
@@ -107,15 +114,31 @@ export default function LectureImport() {
     setResults([]);
     const toImport = rows.filter((r) => r.matched);
 
-    // Phase A: create missing courses (deduped by course_code)
-    setProgressMessage("Creating new courses…");
+    // Phase A: create missing courses (deduped by course_code); update
+    // existing ones so a re-imported CSV refreshes stale title/units/etc.
+    setProgressMessage("Creating/updating courses…");
     const courseIdByCode = {};
     const courseTitleByCode = {};
+    const seenCourseCodes = new Set();
     for (const row of toImport) {
-      if (row.existingCourseId) {
-        courseIdByCode[row.course_code] = row.existingCourseId;
-        courseTitleByCode[row.course_code] = row.existingCourseTitle;
-      }
+      if (!row.existingCourseId || seenCourseCodes.has(row.course_code)) continue;
+      seenCourseCodes.add(row.course_code);
+      courseIdByCode[row.course_code] = row.existingCourseId;
+      courseTitleByCode[row.course_code] = row.existingCourseTitle;
+
+      if (!row.course_title?.trim()) continue;
+      const { data } = await supabase
+        .from("courses")
+        .update({
+          course_title: row.course_title.trim(),
+          credit_units: row.credit_units ? Number(row.credit_units) : null,
+          programme: row.programme || null,
+          level: row.level ? Number(row.level) : deriveLevelFromCode(row.course_code),
+        })
+        .eq("id", row.existingCourseId)
+        .select()
+        .single();
+      if (data) courseTitleByCode[row.course_code] = data.course_title;
     }
     const newCourseCodes = [
       ...new Set(
@@ -149,13 +172,25 @@ export default function LectureImport() {
       }
     }
 
-    // Phase B: invite missing lecturers (deduped by email)
-    setProgressMessage("Inviting new lecturers…");
+    // Phase B: invite missing lecturers (deduped by email); update existing
+    // ones so a re-imported CSV refreshes stale name/faculty/department.
+    setProgressMessage("Creating/updating lecturers…");
     const lecturerIdByEmail = {};
+    const seenLecturerEmails = new Set();
     for (const row of toImport) {
-      if (row.existingLecturerId) {
-        lecturerIdByEmail[row.facilitator_email] = row.existingLecturerId;
-      }
+      if (!row.existingLecturerId || seenLecturerEmails.has(row.facilitator_email)) continue;
+      seenLecturerEmails.add(row.facilitator_email);
+      lecturerIdByEmail[row.facilitator_email] = row.existingLecturerId;
+
+      if (!row.facilitator_name?.trim()) continue;
+      await supabase
+        .from("profiles")
+        .update({
+          full_name: row.facilitator_name.trim(),
+          faculty: row.facilitator_faculty || null,
+          department: row.facilitator_department || null,
+        })
+        .eq("id", row.existingLecturerId);
     }
     const newLecturerEmails = [
       ...new Set(
@@ -176,6 +211,9 @@ export default function LectureImport() {
             email,
             role: "lecturer",
             full_name: sourceRow.facilitator_name.trim(),
+            faculty: sourceRow.facilitator_faculty || null,
+            department: sourceRow.facilitator_department || null,
+            password: DEFAULT_BULK_PASSWORD,
           },
         },
       );

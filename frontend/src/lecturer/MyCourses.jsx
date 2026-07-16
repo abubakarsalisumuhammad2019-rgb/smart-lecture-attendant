@@ -79,12 +79,12 @@ export default function MyCourses() {
                 <tr key={c.id} className="hover:bg-[#f0f4f8] transition-colors duration-200">
                   <td className="px-4 py-2">{c.course_code}</td>
                   <td className="px-4 py-2">{c.course_title}</td>
-                  <td className="px-4 py-2">{c.credit_units ?? '—'}</td>
-                  <td className="px-4 py-2">{c.level ?? '—'}</td>
+                  <td className="px-4 py-2">{c.credit_units ?? '-'}</td>
+                  <td className="px-4 py-2">{c.level ?? '-'}</td>
                   <td className="px-4 py-2">{enrollmentCounts[c.id] || 0}</td>
                 </tr>
               )) : (
-                <tr><td colSpan="5" className="text-center py-4 text-gray-500">No courses assigned yet — ask an admin to assign one from Users.</td></tr>
+                <tr><td colSpan="5" className="text-center py-4 text-gray-500">No courses assigned yet. Ask an admin to assign one from Users.</td></tr>
               )}
             </tbody>
           </table>

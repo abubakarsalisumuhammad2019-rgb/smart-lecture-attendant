@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import './App.css';
 import { AuthProvider } from './lib/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -18,7 +19,7 @@ import Courses from './admin/Courses';
 import Users from './admin/Users';
 import SemesterSettings from './admin/SemesterSettings';
 import LecturerDashboard from './lecturer/Dashboard';
-import LectureRoster from './lecturer/LectureRoster';
+import LectureRoster from './shared/LectureRoster';
 import LecturerMyCourses from './lecturer/MyCourses';
 import LecturerSettings from './lecturer/LecturerSettings';
 import StudentOnboarding from './student/Onboarding';
@@ -30,6 +31,24 @@ import JoinLecture from './student/JoinLecture';
 function App() {
   return (
     <AuthProvider>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          className: 'text-sm font-medium',
+          style: {
+            borderRadius: '0.75rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            padding: '10px 14px',
+          },
+          success: {
+            iconTheme: { primary: '#1d4ed8', secondary: '#fff' },
+          },
+          error: {
+            iconTheme: { primary: '#ef4444', secondary: '#fff' },
+          },
+        }}
+      />
       <Router>
         <Routes>
           {/* Public */}
@@ -46,6 +65,7 @@ function App() {
               <Route path="/admin" element={<Navigate to="/admin/lectures" replace />} />
               <Route path="/admin/lectures" element={<Lectures />} />
               <Route path="/admin/lectures/import" element={<LectureImport />} />
+              <Route path="/admin/lectures/:lectureId/roster" element={<LectureRoster />} />
               <Route path="/admin/courses" element={<Courses />} />
               <Route path="/admin/users" element={<Users />} />
               <Route path="/admin/settings" element={<SemesterSettings />} />

@@ -1,8 +1,12 @@
-import { motion } from "motion/react";
 import Papa from "papaparse";
 import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { getFunctionErrorMessage } from "../lib/functionError";
 import { supabase } from "../lib/supabaseClient";
+import { DEPARTMENTS_BY_FACULTY, getFacultyForDepartment } from "../lib/departments";
+import { getProgrammesForDepartment } from "../lib/programmes";
+import { deriveNounEmail } from "../lib/nounEmail";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 
 // Supabase Auth's default minimum password length is 6 -- "12345" would be
 // rejected outright, so bulk-created accounts get this instead. Lecturers can
@@ -13,7 +17,6 @@ export default function Users() {
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -23,6 +26,8 @@ export default function Users() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("student");
   const [inviteFullName, setInviteFullName] = useState("");
+  const [inviteMatricNumber, setInviteMatricNumber] = useState("");
+  const [inviting, setInviting] = useState(false);
 
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -30,6 +35,20 @@ export default function Users() {
 
   const [assigningFor, setAssigningFor] = useState(null);
   const [assignCourseId, setAssignCourseId] = useState("");
+  const [assigning, setAssigning] = useState(false);
+
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+  const [confirmingSuspendId, setConfirmingSuspendId] = useState(null);
+
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    matric_number: "",
+    phone: "",
+    department: "",
+    programme: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -64,32 +83,58 @@ export default function Users() {
     });
   }, [users, search, roleFilter, statusFilter]);
 
-  const updateUser = async (id, patch) => {
+  const updateUser = async (id, patch, successMessage) => {
     const { error } = await supabase
       .from("profiles")
       .update(patch)
       .eq("id", id);
     if (error) {
-      setMessage(error.message);
+      toast.error(error.message);
     } else {
+      if (successMessage) toast.success(successMessage);
       loadData();
     }
   };
 
+  const handleStatusChange = async (id, status, successMessage) => {
+    setStatusUpdatingId(id);
+    await updateUser(id, { status }, successMessage);
+    setStatusUpdatingId(null);
+  };
+
+  const handleConfirmSuspend = async () => {
+    await handleStatusChange(confirmingSuspendId, "suspended", "User suspended.");
+    setConfirmingSuspendId(null);
+  };
+
   const handleInvite = async () => {
-    if (!inviteEmail) {
-      setMessage("Email is required.");
+    if (inviteRole === "student" && !inviteMatricNumber) {
+      toast.error("Matric Number is required.");
       return;
     }
+    if (inviteRole === "lecturer" && !inviteEmail) {
+      toast.error("Email is required.");
+      return;
+    }
+
+    setInviting(true);
+    const invitedEmail = inviteRole === "student" ? deriveNounEmail(inviteMatricNumber) : inviteEmail;
     const { error } = await supabase.functions.invoke("admin-invite-user", {
-      body: { email: inviteEmail, role: inviteRole, full_name: inviteFullName },
+      body: {
+        email: invitedEmail,
+        role: inviteRole,
+        full_name: inviteFullName,
+        matric_number: inviteRole === "student" ? inviteMatricNumber : undefined,
+      },
     });
+    setInviting(false);
     if (error) {
-      setMessage(await getFunctionErrorMessage(error));
+      toast.error(await getFunctionErrorMessage(error));
     } else {
-      setMessage(`Invited ${inviteEmail}.`);
+      toast.success(`Invited ${invitedEmail}.`);
       setInviteEmail("");
       setInviteFullName("");
+      setInviteMatricNumber("");
       setShowInvite(false);
       loadData();
     }
@@ -159,6 +204,7 @@ export default function Users() {
 
   const handleAssign = async () => {
     if (!assigningFor || !assignCourseId) return;
+    setAssigning(true);
     const { data: sessionSetting } = await supabase
       .from("app_settings")
       .select("*")
@@ -169,17 +215,67 @@ export default function Users() {
       course_id: assignCourseId,
       academic_session: sessionSetting?.value || "",
     });
+    setAssigning(false);
     if (error) {
-      setMessage(
+      toast.error(
         error.code === "23505"
           ? "This lecturer is already assigned to that course."
           : error.message,
       );
     } else {
-      setMessage("Course assigned.");
+      toast.success("Course assigned.");
     }
     setAssigningFor(null);
     setAssignCourseId("");
+  };
+
+  const openEdit = (u) => {
+    setEditingUser(u);
+    setEditForm({
+      full_name: u.full_name || "",
+      matric_number: u.matric_number || "",
+      phone: u.phone || "",
+      department: u.department || "",
+      programme: u.programme || "",
+    });
+  };
+
+  const handleEditDepartmentChange = (value) => {
+    setEditForm((prev) => ({ ...prev, department: value, programme: "" }));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return;
+    setSavingEdit(true);
+
+    const patch = {
+      full_name: editForm.full_name.trim(),
+      phone: editForm.phone.trim(),
+    };
+    if (editingUser.role === "student") {
+      patch.matric_number = editForm.matric_number.trim();
+    }
+    if (editingUser.role === "student" || editingUser.role === "lecturer") {
+      patch.department = editForm.department;
+      patch.faculty = getFacultyForDepartment(editForm.department);
+    }
+    if (editingUser.role === "student") {
+      patch.programme = editForm.programme;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update(patch)
+      .eq("id", editingUser.id);
+
+    setSavingEdit(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("User updated.");
+      setEditingUser(null);
+      loadData();
+    }
   };
 
   return (
@@ -190,16 +286,6 @@ export default function Users() {
           <h1 className="text-lg font-semibold">Users</h1>
         </div>
       </div>
-
-      {message && (
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-blue-50 text-blue-700 text-sm rounded-xl px-4 py-2 mb-4"
-        >
-          {message}
-        </motion.div>
-      )}
 
       {/* Filter toolbar */}
       <div className="bg-white rounded-[1.1rem] shadow-md p-4 mb-4">
@@ -231,12 +317,12 @@ export default function Users() {
             <option value="suspended">Suspended</option>
           </select>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 justify-end">
           <button
             onClick={() => setShowInvite(true)}
             className="h-11 whitespace-nowrap rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-4 font-bold text-white text-sm hover:opacity-90"
           >
-            + Invite
+            + Invite User
           </button>
           <button
             onClick={() => setShowBulkImport(true)}
@@ -298,32 +384,29 @@ export default function Users() {
                       <div className="flex flex-wrap gap-2 text-xs">
                         {u.status === "pending" && (
                           <button
-                            onClick={() =>
-                              updateUser(u.id, { status: "active" })
-                            }
-                            className="text-green-600 hover:underline"
+                            onClick={() => handleStatusChange(u.id, "active", "User approved.")}
+                            disabled={statusUpdatingId === u.id}
+                            className="text-green-600 hover:underline disabled:opacity-50"
                           >
-                            Approve
+                            {statusUpdatingId === u.id ? "Approving…" : "Approve"}
                           </button>
                         )}
                         {u.status === "active" && (
                           <button
-                            onClick={() =>
-                              updateUser(u.id, { status: "suspended" })
-                            }
-                            className="text-red-500 hover:underline"
+                            onClick={() => setConfirmingSuspendId(u.id)}
+                            disabled={statusUpdatingId === u.id}
+                            className="text-red-500 hover:underline disabled:opacity-50"
                           >
-                            Suspend
+                            {statusUpdatingId === u.id ? "Suspending…" : "Suspend"}
                           </button>
                         )}
                         {u.status === "suspended" && (
                           <button
-                            onClick={() =>
-                              updateUser(u.id, { status: "active" })
-                            }
-                            className="text-green-600 hover:underline"
+                            onClick={() => handleStatusChange(u.id, "active", "User reactivated.")}
+                            disabled={statusUpdatingId === u.id}
+                            className="text-green-600 hover:underline disabled:opacity-50"
                           >
-                            Reactivate
+                            {statusUpdatingId === u.id ? "Reactivating…" : "Reactivate"}
                           </button>
                         )}
                         {u.role === "lecturer" && (
@@ -334,6 +417,12 @@ export default function Users() {
                             Assign Course
                           </button>
                         )}
+                        <button
+                          onClick={() => openEdit(u)}
+                          className="text-gray-600 hover:underline"
+                        >
+                          Edit
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -355,12 +444,6 @@ export default function Users() {
                 placeholder="Full name"
                 className="h-11 px-3 border border-gray-200 rounded-xl text-sm"
               />
-              <input
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Email"
-                className="h-11 px-3 border border-gray-200 rounded-xl text-sm"
-              />
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
@@ -369,6 +452,29 @@ export default function Users() {
                 <option value="student">Student</option>
                 <option value="lecturer">Lecturer</option>
               </select>
+              {inviteRole === "student" ? (
+                <>
+                  <input
+                    value={inviteMatricNumber}
+                    onChange={(e) => setInviteMatricNumber(e.target.value)}
+                    placeholder="Matric number, e.g. NOU/2024/12345"
+                    className="h-11 px-3 border border-gray-200 rounded-xl text-sm"
+                  />
+                  <input
+                    value={inviteMatricNumber ? deriveNounEmail(inviteMatricNumber) : ""}
+                    disabled
+                    placeholder="NOUN email (auto-generated)"
+                    className="h-11 px-3 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-500"
+                  />
+                </>
+              ) : (
+                <input
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="Email"
+                  className="h-11 px-3 border border-gray-200 rounded-xl text-sm"
+                />
+              )}
             </div>
             <div className="border-t border-gray-100 pt-3 mt-4 flex justify-end gap-3">
               <button
@@ -379,9 +485,10 @@ export default function Users() {
               </button>
               <button
                 onClick={handleInvite}
-                className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white hover:opacity-90"
+                disabled={inviting}
+                className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white hover:opacity-90 disabled:opacity-50"
               >
-                Send Invite
+                {inviting ? "Sending…" : "Send Invite"}
               </button>
             </div>
           </div>
@@ -473,14 +580,133 @@ export default function Users() {
               </button>
               <button
                 onClick={handleAssign}
-                className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white hover:opacity-90"
+                disabled={assigning}
+                className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white hover:opacity-90 disabled:opacity-50"
               >
-                Assign
+                {assigning ? "Assigning…" : "Assign"}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-semibold mb-1">Edit User</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              {editingUser.email} · <span className="capitalize">{editingUser.role}</span>
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Full Name</label>
+                <input
+                  value={editForm.full_name}
+                  onChange={(e) => setEditForm((p) => ({ ...p, full_name: e.target.value }))}
+                  className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Phone Number</label>
+                <input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
+                  className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
+                />
+              </div>
+
+              {editingUser.role === "student" && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Matric Number</label>
+                  <input
+                    value={editForm.matric_number}
+                    onChange={(e) => setEditForm((p) => ({ ...p, matric_number: e.target.value }))}
+                    className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
+                  />
+                </div>
+              )}
+
+              {(editingUser.role === "student" || editingUser.role === "lecturer") && (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-gray-700">Department</label>
+                    <select
+                      value={editForm.department}
+                      onChange={(e) => handleEditDepartmentChange(e.target.value)}
+                      className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full bg-white"
+                    >
+                      <option value="">Select department</option>
+                      {Object.entries(DEPARTMENTS_BY_FACULTY).map(([faculty, departments]) => (
+                        <optgroup key={faculty} label={faculty}>
+                          {departments.map((dept) => (
+                            <option key={dept} value={dept}>{dept}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+
+                  {editingUser.role === "student" && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-gray-700">Programme</label>
+                      <select
+                        value={editForm.programme}
+                        onChange={(e) => setEditForm((p) => ({ ...p, programme: e.target.value }))}
+                        disabled={!editForm.department}
+                        className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full bg-white disabled:bg-gray-100"
+                      >
+                        <option value="">{editForm.department ? 'Select programme' : 'Select a department first'}</option>
+                        {getProgrammesForDepartment(editForm.department).map((prog) => (
+                          <option key={prog} value={prog}>{prog}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-gray-700">Faculty</label>
+                    <input
+                      value={getFacultyForDepartment(editForm.department)}
+                      disabled
+                      className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full bg-gray-100 text-gray-500"
+                      placeholder="Auto-set from department"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-gray-100 pt-3 mt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setEditingUser(null)}
+                className="text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {savingEdit ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={!!confirmingSuspendId}
+        title="Suspend this user?"
+        message="They won't be able to sign in until reactivated."
+        confirmLabel="Suspend"
+        danger
+        submitting={statusUpdatingId === confirmingSuspendId}
+        onConfirm={handleConfirmSuspend}
+        onClose={() => setConfirmingSuspendId(null)}
+      />
     </>
   );
 }

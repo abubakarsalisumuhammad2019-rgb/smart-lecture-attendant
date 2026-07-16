@@ -14,11 +14,32 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { email, role, full_name, password, department, faculty } = body;
+    const { email, role, full_name, password, department, faculty, matric_number } = body;
 
     // Only one admin account is intended to exist -- it's seeded once, not
     // created through this invite path. Only lecturer/student invites here.
-    if (!email || !role || !["lecturer", "student"].includes(role)) {
+    if (!role || !["lecturer", "student"].includes(role)) {
+      return json({ error: "invalid_fields" }, 400);
+    }
+
+    // Students must sign in with their NOUN institutional email
+    // (matric_number@noun.edu.ng) -- the handle_new_user DB trigger enforces
+    // this unconditionally for every new auth.users row, so an admin invite
+    // that didn't derive it the same way would just fail at the trigger with
+    // a much less friendly error. Deriving it here server-side (rather than
+    // trusting a client-supplied email) is also what closes the gap that used
+    // to leave admin-invited students with no matric_number at all, stuck
+    // permanently at onboarding since face-enroll requires one.
+    let finalEmail = email;
+    let finalMatric: string | null = null;
+    if (role === "student") {
+      const matric = (matric_number ?? "").trim();
+      if (!matric) {
+        return json({ error: "matric_number_required" }, 400);
+      }
+      finalMatric = matric;
+      finalEmail = `${matric.toLowerCase().replace(/\s+/g, "")}@noun.edu.ng`;
+    } else if (!email) {
       return json({ error: "invalid_fields" }, 400);
     }
 
@@ -27,6 +48,7 @@ Deno.serve(async (req: Request) => {
       full_name: full_name ?? "",
       department: department ?? null,
       faculty: faculty ?? null,
+      matric_number: finalMatric,
     };
 
     // Bulk imports pass a preset password (e.g. for lecturers onboarded from a
@@ -35,12 +57,12 @@ Deno.serve(async (req: Request) => {
     // the normal invite-by-email flow (Supabase emails a "set your password" link).
     const { data, error } = password
       ? await service.auth.admin.createUser({
-          email,
+          email: finalEmail,
           password,
           email_confirm: true,
           user_metadata: metadata,
         })
-      : await service.auth.admin.inviteUserByEmail(email, { data: metadata });
+      : await service.auth.admin.inviteUserByEmail(finalEmail, { data: metadata });
 
     if (error) {
       return json({ error: "invite_failed", detail: error.message }, 500);
@@ -49,7 +71,21 @@ Deno.serve(async (req: Request) => {
     // Admin-invited/created users skip the pending-approval step regardless of
     // role, since an admin is the one vouching for them at invite time.
     if (data?.user?.id) {
-      await service.from("profiles").update({ status: "active" }).eq("id", data.user.id);
+      const { error: statusErr } = await service
+        .from("profiles")
+        .update({ status: "active" })
+        .eq("id", data.user.id);
+      if (statusErr) {
+        // The account was created (and is usable once approved), but
+        // couldn't be auto-activated -- surface this as a real error rather
+        // than a silent partial success. A non-2xx status makes the existing
+        // frontend error-toast handling (which only checks the transport
+        // error, not the response body) actually show it.
+        return json(
+          { error: "status_update_failed", detail: statusErr.message },
+          500,
+        );
+      }
     }
 
     return json({ user: data.user }, 200);

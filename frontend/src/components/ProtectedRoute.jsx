@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
+import { PageLoader } from './PageLoader';
 
 const HOME_BY_ROLE = { admin: '/dashboard', lecturer: '/lecturer', student: '/student' };
 
@@ -8,11 +9,7 @@ export function ProtectedRoute({ allowedRoles }) {
   const { session, profile, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <PageLoader label="" />;
   }
 
   if (!session || !profile) {

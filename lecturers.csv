@@ -1,0 +1,84 @@
+email,full_name,faculty,department,courses
+dr.amina.yusuf@noun.edu.ng,Dr. Amina Yusuf,Faculty of Arts,English Language and Literary Studies,GST 101;GST 102;GST 105;GST 107;GST 110
+dr.felix.okafor@noun.edu.ng,Dr. Felix Okafor,Faculty of Social Sciences,Sociology,GST 201;GST 202;GST 203;GST 204;GST 205
+dr.patricia.nwosu@noun.edu.ng,Dr. Patricia Nwosu,Faculty of Management Sciences,Entrepreneurial Studies,GST 301;GST 302;GST 305;GST 401
+dr.adekola.olamide@noun.edu.ng,Dr. Adekola Olamide,Faculty of Science and Technology,Computer Science,CIT 101;CIT 103;CIT 105;CIT 107
+dr.chukwuemeka.obi@noun.edu.ng,Dr. Chukwuemeka Obi,Faculty of Science and Technology,Computer Science,CIT 201;CIT 203;CIT 205;CIT 211
+dr.aisha.suleiman@noun.edu.ng,Dr. Aisha Suleiman,Faculty of Science and Technology,Computer Science,CIT 207;CIT 209;CIT 213
+dr.babatunde.adeyemi@noun.edu.ng,Dr. Babatunde Adeyemi,Faculty of Science and Technology,Computer Science,CIT 301;CIT 303;CIT 305;CIT 307
+dr.ngozi.eze@noun.edu.ng,Dr. Ngozi Eze,Faculty of Science and Technology,Computer Science,CIT 302;CIT 304;CIT 306;CIT 309
+dr.musa.aliyu@noun.edu.ng,Dr. Musa Aliyu,Faculty of Science and Technology,Computer Science,CIT 401;CIT 405;CIT 407;CIT 409
+dr.fatima.ibrahim@noun.edu.ng,Dr. Fatima Ibrahim,Faculty of Science and Technology,Computer Science,CIT 403;CIT 411;CIT 413;CIT 415;CIT 417;CIT 491
+dr.hassan.bello@noun.edu.ng,Dr. Hassan Bello,Faculty of Science and Technology,Mathematics,MTH 101;MTH 102;MTH 110;MTH 122;MTH 141
+dr.blessing.okeke@noun.edu.ng,Dr. Blessing Okeke,Faculty of Science and Technology,Mathematics,MTH 201;MTH 202;MTH 203;MTH 204
+dr.ibrahim.garba@noun.edu.ng,Dr. Ibrahim Garba,Faculty of Science and Technology,Mathematics,MTH 205;MTH 206;MTH 211
+dr.chidinma.okonkwo@noun.edu.ng,Dr. Chidinma Okonkwo,Faculty of Science and Technology,Mathematics,MTH 301;MTH 302;MTH 303;MTH 304
+dr.yakubu.tanko@noun.edu.ng,Dr. Yakubu Tanko,Faculty of Science and Technology,Mathematics,MTH 305;MTH 306;MTH 307;MTH 308
+dr.adaeze.obiora@noun.edu.ng,Dr. Adaeze Obiora,Faculty of Science and Technology,Mathematics,MTH 401;MTH 402;MTH 403;MTH 404
+dr.tunde.badmus@noun.edu.ng,Dr. Tunde Badmus,Faculty of Science and Technology,Mathematics,MTH 405;MTH 406;MTH 407;MTH 408;MTH 491
+dr.oluwaseun.adebayo@noun.edu.ng,Dr. Oluwaseun Adebayo,Faculty of Science and Technology,Physics,PHY 101;PHY 102;PHY 103;PHY 107;PHY 112
+dr.kemi.oyelaran@noun.edu.ng,Dr. Kemi Oyelaran,Faculty of Science and Technology,Physics,PHY 201;PHY 202;PHY 203;PHY 204;PHY 205;PHY 207
+dr.sani.umar@noun.edu.ng,Dr. Sani Umar,Faculty of Science and Technology,Physics,PHY 301;PHY 302;PHY 303
+dr.grace.aneke@noun.edu.ng,Dr. Grace Aneke,Faculty of Science and Technology,Physics,PHY 304;PHY 305;PHY 306;PHY 307
+dr.aminu.shehu@noun.edu.ng,Dr. Aminu Shehu,Faculty of Science and Technology,Physics,PHY 401;PHY 402;PHY 403;PHY 404;PHY 405;PHY 407;PHY 491
+dr.folake.adunola@noun.edu.ng,Dr. Folake Adunola,Faculty of Science and Technology,Pure and Applied Chemistry,CHM 101;CHM 102;CHM 107;CHM 112
+dr.peter.eze@noun.edu.ng,Dr. Peter Eze,Faculty of Science and Technology,Pure and Applied Chemistry,CHM 201;CHM 202;CHM 203;CHM 204;CHM 207
+dr.miriam.bello@noun.edu.ng,Dr. Miriam Bello,Faculty of Science and Technology,Pure and Applied Chemistry,CHM 301;CHM 302;CHM 303;CHM 304;CHM 305;CHM 307
+dr.nnamdi.okafor@noun.edu.ng,Dr. Nnamdi Okafor,Faculty of Science and Technology,Pure and Applied Chemistry,CHM 401;CHM 402;CHM 403;CHM 404;CHM 491
+dr.olusegun.akinola@noun.edu.ng,Dr. Olusegun Akinola,Faculty of Science and Technology,Biology,BIO 101;BIO 102;BIO 107
+dr.amaka.nzelu@noun.edu.ng,Dr. Amaka Nzelu,Faculty of Science and Technology,Biology,BIO 201;BIO 202;BIO 203;BIO 204;BIO 207
+dr.adamu.tanko@noun.edu.ng,Dr. Adamu Tanko,Faculty of Science and Technology,Biology,BIO 301;BIO 302;BIO 303;BIO 307
+dr.ngozi.obiora@noun.edu.ng,Dr. Ngozi Obiora,Faculty of Science and Technology,Biology,BIO 304;BIO 305;BIO 401;BIO 402;BIO 403;BIO 404;BIO 491
+dr.yemi.adesanya@noun.edu.ng,Dr. Yemi Adesanya,Faculty of Management Sciences,Business Administration,BUS 101;BUS 103;BUS 105
+dr.chika.okoye@noun.edu.ng,Dr. Chika Okoye,Faculty of Management Sciences,Business Administration,BUS 201;BUS 202;BUS 203
+dr.halima.abdullahi@noun.edu.ng,Dr. Halima Abdullahi,Faculty of Management Sciences,Human Resource Management,BUS 205;BUS 207;BUS 209
+dr.emeka.dike@noun.edu.ng,Dr. Emeka Dike,Faculty of Management Sciences,Business Administration,BUS 301;BUS 302;BUS 303;BUS 304
+dr.salome.agbo@noun.edu.ng,Dr. Salome Agbo,Faculty of Management Sciences,Business Administration,BUS 305;BUS 306;BUS 307
+dr.bello.yusuf@noun.edu.ng,Dr. Bello Yusuf,Faculty of Management Sciences,Business Administration,BUS 401;BUS 402;BUS 403;BUS 404;BUS 405;BUS 491
+dr.chiamaka.eze@noun.edu.ng,Dr. Chiamaka Eze,Faculty of Management Sciences,Accounting,ACC 101;ACC 103;ACC 201;ACC 202
+dr.rotimi.olatunde@noun.edu.ng,Dr. Rotimi Olatunde,Faculty of Management Sciences,Accounting,ACC 203;ACC 204;ACC 205
+dr.hauwa.bello@noun.edu.ng,Dr. Hauwa Bello,Faculty of Management Sciences,Accounting,ACC 301;ACC 302;ACC 303;ACC 304;ACC 305;ACC 306
+dr.emeka.nwachukwu@noun.edu.ng,Dr. Emeka Nwachukwu,Faculty of Management Sciences,Accounting,ACC 401;ACC 402;ACC 403;ACC 404;ACC 405;ACC 491
+dr.titi.okoye@noun.edu.ng,Dr. Titi Okoye,Faculty of Social Sciences,Economics,ECO 101;ECO 102;ECO 201;ECO 202
+dr.abubakar.musa@noun.edu.ng,Dr. Abubakar Musa,Faculty of Social Sciences,Economics,ECO 203;ECO 205;ECO 207
+dr.usman.danladi@noun.edu.ng,Dr. Usman Danladi,Faculty of Social Sciences,Economics,ECO 301;ECO 302;ECO 303
+dr.ngozi.agbo@noun.edu.ng,Dr. Ngozi Agbo,Faculty of Social Sciences,Economics,ECO 305;ECO 306;ECO 307;ECO 309
+dr.victoria.ibe@noun.edu.ng,Dr. Victoria Ibe,Faculty of Social Sciences,Economics,ECO 401;ECO 402;ECO 403;ECO 404;ECO 405;ECO 406;ECO 491
+dr.adaobi.nwosu@noun.edu.ng,Dr. Adaobi Nwosu,Faculty of Social Sciences,Mass Communication,MCM 101;MCM 103;MCM 105;MCM 201
+dr.ibrahim.sani@noun.edu.ng,Dr. Ibrahim Sani,Faculty of Social Sciences,Mass Communication,MCM 203;MCM 205;MCM 207;MCM 209
+dr.chinyere.onwu@noun.edu.ng,Dr. Chinyere Onwu,Faculty of Social Sciences,Mass Communication,MCM 301;MCM 302;MCM 303;MCM 304
+dr.sola.adesina@noun.edu.ng,Dr. Sola Adesina,Faculty of Social Sciences,Mass Communication,MCM 305;MCM 307;MCM 401;MCM 402;MCM 403;MCM 405;MCM 491
+dr.josephine.obi@noun.edu.ng,Dr. Josephine Obi,Faculty of Social Sciences,Library and Information Science,LIS 101;LIS 103;LIS 201;LIS 202
+dr.kenneth.ezeilo@noun.edu.ng,Dr. Kenneth Ezeilo,Faculty of Social Sciences,Library and Information Science,LIS 203;LIS 205;LIS 301;LIS 302
+dr.rashida.bello@noun.edu.ng,Dr. Rashida Bello,Faculty of Social Sciences,Library and Information Science,LIS 303;LIS 305;LIS 307;LIS 401
+dr.olumide.akintola@noun.edu.ng,Dr. Olumide Akintola,Faculty of Social Sciences,Library and Information Science,LIS 402;LIS 403;LIS 404;LIS 491
+dr.grace.adeyemi@noun.edu.ng,Dr. Grace Adeyemi,Faculty of Education,Educational Management,EDU 101;EDU 103;EDU 201;EDU 202
+dr.sunday.okoro@noun.edu.ng,Dr. Sunday Okoro,Faculty of Education,Educational Technology,EDU 203;EDU 205;EDU 207
+dr.aminat.ibrahim@noun.edu.ng,Dr. Aminat Ibrahim,Faculty of Education,Educational Management,EDU 301;EDU 302;EDU 303;EDU 304;EDU 305
+dr.chisom.nwofor@noun.edu.ng,Dr. Chisom Nwofor,Faculty of Education,Educational Management,EDU 401;EDU 402;EDU 403;EDU 404;EDU 491
+dr.adebisi.olawale@noun.edu.ng,Dr. Adebisi Olawale,Faculty of Social Sciences,Political Science,POL 101;POL 103;POL 201;POL 202
+dr.maryam.ibrahim@noun.edu.ng,Dr. Maryam Ibrahim,Faculty of Social Sciences,Political Science,POL 203;POL 205
+dr.chukwudi.ozo@noun.edu.ng,Dr. Chukwudi Ozo,Faculty of Social Sciences,Political Science,POL 301;POL 302;POL 303;POL 305;POL 307
+dr.funke.adeleke@noun.edu.ng,Dr. Funke Adeleke,Faculty of Social Sciences,Political Science,POL 401;POL 402;POL 403;POL 405;POL 491
+dr.nkechi.onuoha@noun.edu.ng,Dr. Nkechi Onuoha,Faculty of Social Sciences,Sociology,SOC 101;SOC 103;SOC 201;SOC 202
+dr.tijani.bello@noun.edu.ng,Dr. Tijani Bello,Faculty of Social Sciences,Sociology,SOC 203;SOC 205
+dr.chibuike.ogbodo@noun.edu.ng,Dr. Chibuike Ogbodo,Faculty of Social Sciences,Sociology,SOC 301;SOC 302;SOC 303;SOC 304;SOC 305
+dr.helen.okafor@noun.edu.ng,Dr. Helen Okafor,Faculty of Social Sciences,Sociology,SOC 401;SOC 402;SOC 403;SOC 404;SOC 491
+dr.aliyu.muhammed@noun.edu.ng,Dr. Aliyu Muhammed,Faculty of Management Sciences,Public Administration,PAD 101;PAD 103;PAD 201;PAD 202
+dr.esther.nnamdi@noun.edu.ng,Dr. Esther Nnamdi,Faculty of Management Sciences,Public Administration,PAD 203;PAD 205;PAD 301;PAD 302
+dr.ibrahim.waziri@noun.edu.ng,Dr. Ibrahim Waziri,Faculty of Management Sciences,Public Administration,PAD 303;PAD 305;PAD 401;PAD 402;PAD 403;PAD 491
+dr.amara.osei@noun.edu.ng,Dr. Amara Osei,Faculty of Arts,English Language and Literary Studies,ENG 101;ENG 103;ENG 201;ENG 202
+dr.deola.ajayi@noun.edu.ng,Dr. Deola Ajayi,Faculty of Arts,English Language and Literary Studies,ENG 203;ENG 205;ENG 301;ENG 302
+dr.richard.okolo@noun.edu.ng,Dr. Richard Okolo,Faculty of Arts,English Language and Literary Studies,ENG 303;ENG 305;ENG 401;ENG 402;ENG 403;ENG 491
+dr.stella.abara@noun.edu.ng,Dr. Stella Abara,Faculty of Health Sciences,Nursing Science,NUR 101;NUR 103;NUR 105;NUR 201
+dr.blessing.oguike@noun.edu.ng,Dr. Blessing Oguike,Faculty of Health Sciences,Nursing Science,NUR 202;NUR 203;NUR 205;NUR 301
+dr.mohammed.kabir@noun.edu.ng,Dr. Mohammed Kabir,Faculty of Health Sciences,Nursing Science,NUR 302;NUR 303;NUR 305;NUR 401;NUR 402;NUR 403;NUR 491
+dr.john.adeoye@noun.edu.ng,Dr. John Adeoye,Faculty of Science and Technology,Agricultural Science,AGR 101;AGR 103;AGR 201;AGR 202
+dr.patience.okeke@noun.edu.ng,Dr. Patience Okeke,Faculty of Science and Technology,Agricultural Science,AGR 203;AGR 205;AGR 301;AGR 302
+dr.abdullahi.garba@noun.edu.ng,Dr. Abdullahi Garba,Faculty of Science and Technology,Agricultural Science,AGR 303;AGR 304;AGR 305;AGR 401;AGR 402;AGR 403;AGR 491
+dr.aminu.lawal@noun.edu.ng,Dr. Aminu Lawal,Faculty of Social Sciences,Peace Studies and Conflict Resolution,PCR 101;PCR 201;PCR 202;PCR 301
+dr.obioma.chukwu@noun.edu.ng,Dr. Obioma Chukwu,Faculty of Social Sciences,Peace Studies and Conflict Resolution,PCR 302;PCR 401;PCR 491
+dr.yusuf.saliu@noun.edu.ng,Dr. Yusuf Saliu,Faculty of Social Sciences,Criminology and Security Studies,CSS 101;CSS 201;CSS 202;CSS 301
+dr.aduke.olusola@noun.edu.ng,Dr. Aduke Olusola,Faculty of Social Sciences,Criminology and Security Studies,CSS 302;CSS 401;CSS 491
+dr.marie.dupont@noun.edu.ng,Dr. Marie Dupont,Faculty of Arts,French Language and Francophone Studies,FRE 101;FRE 102;FRE 201;FRE 202
+dr.pierre.okonkwo@noun.edu.ng,Dr. Pierre Okonkwo,Faculty of Arts,French Language and Francophone Studies,FRE 301;FRE 302;FRE 401;FRE 491

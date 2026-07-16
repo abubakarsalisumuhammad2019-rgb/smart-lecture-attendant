@@ -37,3 +37,7 @@ export const PROGRAMMES_BY_DEPARTMENT = {
 export function getProgrammesForDepartment(department) {
   return PROGRAMMES_BY_DEPARTMENT[department] || [];
 }
+
+export function getAllProgrammes() {
+  return [...new Set(Object.values(PROGRAMMES_BY_DEPARTMENT).flat())].sort();
+}

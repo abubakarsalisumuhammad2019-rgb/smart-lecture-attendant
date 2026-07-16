@@ -21,6 +21,8 @@ export default function Onboarding() {
   const [search, setSearch] = useState('');
   const [enrolling, setEnrolling] = useState(false);
   const [enrollError, setEnrollError] = useState('');
+  const [maxCreditUnits, setMaxCreditUnits] = useState(null);
+  const [capMessage, setCapMessage] = useState('');
 
   const [enrollingFace, setEnrollingFace] = useState(false);
   const [faceError, setFaceError] = useState('');
@@ -31,6 +33,7 @@ export default function Onboarding() {
       const settingsMap = Object.fromEntries((settingsRows || []).map((s) => [s.key, s.value]));
       const session = settingsMap.active_academic_session || '';
       const semester = settingsMap.active_semester || '';
+      setMaxCreditUnits(settingsMap.max_credit_units ? Number(settingsMap.max_credit_units) : null);
 
       const { data } = await supabase
         .from('courses')
@@ -55,11 +58,24 @@ export default function Onboarding() {
     return c.course_code.toLowerCase().includes(q) || c.course_title.toLowerCase().includes(q);
   });
 
+  const unitsOf = (courseId) => courses.find((c) => c.id === courseId)?.credit_units || 0;
+  const selectedUnits = [...checkedCourseIds].reduce((sum, id) => sum + unitsOf(id), 0);
+
   const toggleCourse = (courseId) => {
+    setCapMessage('');
     setCheckedCourseIds((prev) => {
       const next = new Set(prev);
-      if (next.has(courseId)) next.delete(courseId);
-      else next.add(courseId);
+      if (next.has(courseId)) {
+        next.delete(courseId);
+        return next;
+      }
+      const course = courses.find((c) => c.id === courseId);
+      const wouldBeUnits = [...prev].reduce((sum, id) => sum + unitsOf(id), 0) + (course?.credit_units || 0);
+      if (maxCreditUnits && wouldBeUnits > maxCreditUnits) {
+        setCapMessage(`You've reached the ${maxCreditUnits}-unit maximum for this semester -- deselect a course to add a different one.`);
+        return prev;
+      }
+      next.add(courseId);
       return next;
     });
   };
@@ -70,6 +86,7 @@ export default function Onboarding() {
 
     setSlipStatus('parsing');
     setSlipMessage('');
+    setCapMessage('');
 
     try {
       const codes = await extractCourseCodesFromSlip(file);
@@ -79,10 +96,26 @@ export default function Onboarding() {
         setSlipStatus('error');
         setSlipMessage("Couldn't find any course codes in this file (likely a scanned image) -- select your courses manually below.");
       } else {
-        setCheckedCourseIds((prev) => new Set([...prev, ...matched.map((c) => c.id)]));
-        setSlipMatchedIds(new Set(matched.map((c) => c.id)));
+        let runningUnits = 0;
+        const accepted = [];
+        const skipped = [];
+        for (const c of matched) {
+          const nextUnits = runningUnits + (c.credit_units || 0);
+          if (maxCreditUnits && nextUnits > maxCreditUnits) {
+            skipped.push(c);
+          } else {
+            runningUnits = nextUnits;
+            accepted.push(c);
+          }
+        }
+
+        setCheckedCourseIds((prev) => new Set([...prev, ...accepted.map((c) => c.id)]));
+        setSlipMatchedIds(new Set(accepted.map((c) => c.id)));
         setSlipStatus('parsed');
-        setSlipMessage(`Matched ${matched.length} course${matched.length === 1 ? '' : 's'} from your slip -- review the pre-ticked list below and confirm.`);
+        const skippedNote = skipped.length > 0
+          ? ` ${skipped.length} course${skipped.length === 1 ? '' : 's'} (${skipped.map((c) => c.course_code).join(', ')}) skipped -- adding them would exceed the ${maxCreditUnits}-unit semester maximum.`
+          : '';
+        setSlipMessage(`Matched ${matched.length} course${matched.length === 1 ? '' : 's'} from your slip -- review the pre-ticked list below and confirm.${skippedNote}`);
       }
     } catch (err) {
       setSlipStatus('error');
@@ -201,29 +234,45 @@ export default function Onboarding() {
               <div className="bg-red-50 border border-red-100 text-red-700 text-sm rounded-xl px-3 py-3 mb-3">{enrollError}</div>
             )}
 
+            {capMessage && (
+              <div className="bg-orange-50 border border-orange-100 text-orange-700 text-sm rounded-xl px-3 py-3 mb-3">{capMessage}</div>
+            )}
+
             <div className="border border-gray-100 rounded-xl max-h-64 overflow-y-auto mb-4">
               {loadingCourses ? (
                 <p className="text-sm text-gray-500 p-4">Loading courses…</p>
               ) : filteredCourses.length === 0 ? (
                 <p className="text-sm text-gray-500 p-4">No courses match your search.</p>
               ) : (
-                filteredCourses.map((c) => (
-                  <label key={c.id} className="flex items-center gap-3 px-4 py-2 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={checkedCourseIds.has(c.id)}
-                      onChange={() => toggleCourse(c.id)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm text-gray-800">
-                      <span className="font-semibold">{c.course_code}</span> — {c.course_title}
-                    </span>
-                  </label>
-                ))
+                filteredCourses.map((c) => {
+                  const isChecked = checkedCourseIds.has(c.id);
+                  const wouldExceedCap = !isChecked && maxCreditUnits && selectedUnits + (c.credit_units || 0) > maxCreditUnits;
+                  return (
+                    <label
+                      key={c.id}
+                      className={`flex items-center gap-3 px-4 py-2 border-b border-gray-50 last:border-0 ${wouldExceedCap ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={wouldExceedCap}
+                        onChange={() => toggleCourse(c.id)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm text-gray-800">
+                        <span className="font-semibold">{c.course_code}</span> - {c.course_title}
+                        {c.credit_units ? <span className="text-gray-400"> ({c.credit_units} units)</span> : null}
+                      </span>
+                    </label>
+                  );
+                })
               )}
             </div>
 
-            <p className="text-xs text-gray-400 mb-4">{checkedCourseIds.size} course{checkedCourseIds.size === 1 ? '' : 's'} selected.</p>
+            <p className="text-xs text-gray-400 mb-4">
+              {checkedCourseIds.size} course{checkedCourseIds.size === 1 ? '' : 's'} selected
+              {maxCreditUnits ? ` -- ${selectedUnits} of ${maxCreditUnits} units used` : ''}.
+            </p>
 
             <button
               onClick={handleConfirmEnrollment}

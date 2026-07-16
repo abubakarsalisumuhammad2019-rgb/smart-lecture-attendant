@@ -3,8 +3,7 @@ import Papa from "papaparse";
 import { useEffect, useState } from "react";
 import { deriveLevelFromCode } from "../lib/courseHelpers";
 import { supabase } from "../lib/supabaseClient";
-
-const LEVELS = [100, 200, 300, 400, 500, 600];
+import { CourseForm } from "../shared/CourseForm";
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
@@ -12,14 +11,7 @@ export default function Courses() {
   const [activeSemester, setActiveSemester] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
-  const [newCourse, setNewCourse] = useState({
-    course_code: "",
-    course_title: "",
-    credit_units: "",
-    programme: "",
-    level: "",
-  });
-  const [levelTouched, setLevelTouched] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [importResults, setImportResults] = useState(null);
   const [importing, setImporting] = useState(false);
 
@@ -45,51 +37,6 @@ export default function Courses() {
   useEffect(() => {
     load();
   }, []);
-
-  const handleCourseCodeChange = (value) => {
-    setNewCourse((c) => ({
-      ...c,
-      course_code: value,
-      // Auto-fill level from the code unless the admin has manually picked one.
-      level: levelTouched ? c.level : (deriveLevelFromCode(value) ?? ""),
-    }));
-  };
-
-  const handleAddCourse = async () => {
-    if (!newCourse.course_code.trim() || !newCourse.course_title.trim()) {
-      setMessage("Course code and title are required.");
-      return;
-    }
-    const { error } = await supabase.from("courses").insert({
-      course_code: newCourse.course_code.trim().toUpperCase(),
-      course_title: newCourse.course_title.trim(),
-      credit_units: newCourse.credit_units
-        ? Number(newCourse.credit_units)
-        : null,
-      programme: newCourse.programme || null,
-      level: newCourse.level ? Number(newCourse.level) : null,
-      semester: activeSemester,
-      academic_session: activeSession,
-    });
-    if (error) {
-      setMessage(
-        error.code === "23505"
-          ? "That course code already exists for the active session/semester."
-          : error.message,
-      );
-    } else {
-      setMessage("Course added.");
-      setNewCourse({
-        course_code: "",
-        course_title: "",
-        credit_units: "",
-        programme: "",
-        level: "",
-      });
-      setLevelTouched(false);
-      load();
-    }
-  };
 
   const handleImportFile = (e) => {
     const file = e.target.files?.[0];
@@ -163,6 +110,31 @@ export default function Courses() {
           <p>Pages / Courses</p>
           <h1 className="text-lg font-semibold">Courses</h1>
         </div>
+        <div className="flex gap-3">
+          <label className="rounded-xl bg-white text-blue-700 px-5 py-2 font-bold hover:bg-gray-100 cursor-pointer whitespace-nowrap">
+            {importing ? "Importing…" : "Bulk Import"}
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImportFile}
+              disabled={importing}
+              className="hidden"
+            />
+          </label>
+          <button
+            onClick={() => setShowForm(true)}
+            className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-5 py-2 font-bold text-white hover:opacity-90"
+          >
+            + New Course
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md px-4 py-2 mb-4">
+        <p className="text-xs text-gray-400">
+          Bulk import CSV columns: course_code, course_title, credit_units,
+          programme, level (level is auto-derived from the code if omitted).
+        </p>
       </div>
 
       {message && (
@@ -175,154 +147,34 @@ export default function Courses() {
         </motion.div>
       )}
 
-      <div className="bg-white rounded-[1.1rem] shadow-md p-4 sm:p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-          <h2 className="text-gray-900 font-semibold">Add a Course</h2>
-          <label className="text-sm font-medium text-blue-600 hover:underline cursor-pointer w-full sm:w-auto text-center sm:text-left whitespace-nowrap">
-            {importing ? "Importing…" : "Bulk import from CSV"}
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleImportFile}
-              disabled={importing}
-              className="hidden"
-            />
-          </label>
-        </div>
-
-        {importResults && (
-          <div className="mb-4 text-sm bg-gray-50 rounded-xl p-3">
-            <p className="font-medium text-gray-700">
-              {importResults.created} created, {importResults.skipped} already
-              existed (skipped).
-            </p>
-            {importResults.failed.length > 0 && (
-              <ul className="mt-1 text-red-500 text-xs list-disc list-inside">
-                {importResults.failed.map((f, idx) => (
-                  <li key={idx}>
-                    {f.code}: {f.reason}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        <p className="text-xs text-gray-400 mb-4">
-          CSV columns: course_code, course_title, credit_units, programme, level
-          (level is auto-derived from the code if omitted).
-        </p>
-
-        <div className="grid grid-cols-1 gap-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
-                Course Code *
-              </label>
-              <input
-                value={newCourse.course_code}
-                onChange={(e) => handleCourseCodeChange(e.target.value)}
-                placeholder="e.g. CIT 403"
-                className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
-                Credit Units
-              </label>
-              <input
-                value={newCourse.credit_units}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, credit_units: e.target.value })
-                }
-                placeholder="e.g. 2"
-                type="number"
-                className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">
-              Course Title *
-            </label>
-            <input
-              value={newCourse.course_title}
-              onChange={(e) =>
-                setNewCourse({ ...newCourse, course_title: e.target.value })
-              }
-              placeholder="e.g. Database Design and Management"
-              className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">
-              Programme
-            </label>
-            <input
-              value={newCourse.programme}
-              onChange={(e) =>
-                setNewCourse({ ...newCourse, programme: e.target.value })
-              }
-              placeholder="e.g. BSc Computer Science"
-              className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Level</label>
-            <select
-              value={newCourse.level}
-              onChange={(e) => {
-                setLevelTouched(true);
-                setNewCourse({ ...newCourse, level: e.target.value });
-              }}
-              className="w-full h-11 px-3 border border-gray-200 rounded-xl text-sm"
-            >
-              <option value="">Select level</option>
-              {LEVELS.map((lvl) => (
-                <option key={lvl} value={lvl}>
-                  {lvl} Level
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
-                Academic Session
-              </label>
-              <input
-                value={activeSession}
-                disabled
-                className="w-full h-11 px-3 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-500"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
-                Semester
-              </label>
-              <input
-                value={activeSemester}
-                disabled
-                className="w-full h-11 px-3 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-500"
-              />
-            </div>
-          </div>
-          <p className="text-[11px] text-gray-400 -mt-2">
-            Change session / semester in Admin → Settings.
+      {importResults && (
+        <div className="mb-4 text-sm bg-white rounded-xl shadow-md p-4">
+          <p className="font-medium text-gray-700">
+            {importResults.created} created, {importResults.skipped} already
+            existed (skipped).
           </p>
-
-          <button
-            onClick={handleAddCourse}
-            className="h-11 rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-4 font-bold text-white hover:opacity-90 transition-opacity w-full sm:w-auto sm:self-end"
-          >
-            + Add Course
-          </button>
+          {importResults.failed.length > 0 && (
+            <ul className="mt-1 text-red-500 text-xs list-disc list-inside">
+              {importResults.failed.map((f, idx) => (
+                <li key={idx}>
+                  {f.code}: {f.reason}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      </div>
+      )}
+
+      {showForm && (
+        <CourseForm
+          onClose={() => setShowForm(false)}
+          onCreated={() => {
+            setShowForm(false);
+            setMessage("Course added.");
+            load();
+          }}
+        />
+      )}
 
       <div className="bg-white rounded-[1.1rem] shadow-md p-4 sm:p-6">
         <h2 className="text-gray-900 font-semibold mb-4">All Courses</h2>

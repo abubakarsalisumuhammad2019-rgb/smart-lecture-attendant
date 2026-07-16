@@ -166,7 +166,7 @@ export default function Dashboard() {
                           Join
                         </Link>
                       ) : (
-                        <span className="text-gray-400 text-xs">—</span>
+                        <span className="text-gray-400 text-xs">-</span>
                       )}
                     </td>
                   </tr>

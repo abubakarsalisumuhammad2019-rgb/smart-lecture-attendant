@@ -53,7 +53,7 @@ export default function Dashboard() {
     const settingsMap = Object.fromEntries((settingsRows || []).map((s) => [s.key, s.value]));
     const activeSession = settingsMap.active_academic_session || "";
 
-    const [lecturesRes, coursesCountRes] = await Promise.all([
+    const [lecturesRes, coursesCountRes, hostSecretsRes] = await Promise.all([
       supabase
         .from("lectures")
         .select("*, courses(course_code, course_title), profiles(full_name)")
@@ -64,9 +64,21 @@ export default function Dashboard() {
         .select("id", { count: "exact", head: true })
         .eq("lecturer_id", profile.id)
         .eq("academic_session", activeSession),
+      // RLS scopes this to the lecturer's own lectures already -- the real
+      // Zoom "start as host" link, as opposed to meeting_web_url (join_url),
+      // which just drops anyone -- lecturer included -- into the attendee
+      // waiting room since every meeting is created under one shared
+      // institutional Zoom account, not the lecturer's own.
+      supabase.from("lecture_host_secrets").select("lecture_id, meeting_start_url"),
     ]);
 
-    const allLectures = lecturesRes.data || [];
+    const hostUrlByLectureId = Object.fromEntries(
+      (hostSecretsRes.data || []).map((h) => [h.lecture_id, h.meeting_start_url]),
+    );
+    const allLectures = (lecturesRes.data || []).map((l) => ({
+      ...l,
+      host_start_url: hostUrlByLectureId[l.id] || null,
+    }));
     const now = new Date();
     const upcoming = allLectures.filter(
       (l) => (l.status === "scheduled" || l.status === "rescheduled") && new Date(l.start_time) >= now
@@ -140,19 +152,37 @@ export default function Dashboard() {
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Next Up</p>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-gray-900 font-semibold">{nextUp.topic}</h2>
-              <p className="text-sm text-gray-500">
+              <div className="flex items-center gap-2">
+                <h2 className="text-gray-900 font-semibold">{nextUp.topic}</h2>
+                {nextUp.status === "rescheduled" && (
+                  <span className="text-[11px] font-medium text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                    rescheduled
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mb-1">
                 {nextUp.courses?.course_code} &middot; {new Date(nextUp.start_time).toLocaleString()}
               </p>
+              <div className="flex flex-wrap gap-3">
+                <Link to={`/lecturer/lectures/${nextUp.id}/roster`} className="text-blue-600 hover:underline text-xs">
+                  Roster
+                </Link>
+                <button onClick={() => setReschedulingLecture(nextUp)} className="text-blue-600 hover:underline text-xs">
+                  Reschedule
+                </button>
+                <button onClick={() => setCancelingLecture(nextUp)} className="text-red-500 hover:underline text-xs">
+                  Cancel
+                </button>
+              </div>
             </div>
             {nextUp.meeting_web_url ? (
               <a
-                href={nextUp.meeting_web_url}
+                href={nextUp.host_start_url || nextUp.meeting_web_url}
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-5 py-2 font-bold text-white hover:opacity-90 text-center"
               >
-                Join Zoom
+                {nextUp.host_start_url ? "Start Meeting" : "Join Zoom"}
               </a>
             ) : (
               <button
@@ -256,6 +286,16 @@ export default function Dashboard() {
                             {settingUpId === lecture.id ? "Setting up…" : "Set up Zoom"}
                           </button>
                         )}
+                        {lecture.meeting_web_url && lecture.status !== "cancelled" && (
+                          <a
+                            href={lecture.host_start_url || lecture.meeting_web_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 hover:underline text-xs"
+                          >
+                            {lecture.host_start_url ? "Start" : "Join"}
+                          </a>
+                        )}
                         <Link to={`/lecturer/lectures/${lecture.id}/roster`} className="text-blue-600 hover:underline text-xs">
                           Roster
                         </Link>
@@ -276,7 +316,7 @@ export default function Dashboard() {
               ) : (
                 <tr>
                   <td colSpan="6" className="text-center py-4 text-gray-500">
-                    No lectures yet — ask an admin to schedule one for you.
+                    No lectures yet. Ask an admin to schedule one for you.
                   </td>
                 </tr>
               )}

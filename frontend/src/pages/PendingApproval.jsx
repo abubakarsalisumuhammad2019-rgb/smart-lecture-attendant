@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function PendingApproval() {
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    window.location.href = '/Signin';
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-split p-4">
       <div className="bg-white rounded-2xl shadow-md p-8 max-w-md text-center">
@@ -12,10 +20,11 @@ export default function PendingApproval() {
           once that's done.
         </p>
         <button
-          onClick={() => supabase.auth.signOut().then(() => { window.location.href = '/Signin'; })}
-          className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white transition-all hover:opacity-90"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
         >
-          Sign Out
+          {signingOut ? 'Signing out…' : 'Sign Out'}
         </button>
       </div>
     </div>

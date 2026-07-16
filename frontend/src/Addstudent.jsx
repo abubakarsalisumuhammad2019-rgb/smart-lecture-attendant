@@ -1,5 +1,6 @@
 import "./App.css";
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { supabase } from './lib/supabaseClient';
 import { getFunctionErrorMessage } from './lib/functionError';
 
@@ -10,6 +11,8 @@ const Addstudent = () => {
   const [matricInput, setMatricInput] = useState('');
   const [foundStudent, setFoundStudent] = useState(null);
   const [lookupMessage, setLookupMessage] = useState('');
+  const [lookingUp, setLookingUp] = useState(false);
+  const [enrollingFace, setEnrollingFace] = useState(false);
 
   useEffect(() => {
     const getCameraStream = async () => {
@@ -39,12 +42,14 @@ const Addstudent = () => {
       return;
     }
 
+    setLookingUp(true);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('role', 'student')
       .eq('matric_number', matricInput.trim())
       .maybeSingle();
+    setLookingUp(false);
 
     if (error || !data) {
       setFoundStudent(null);
@@ -61,11 +66,12 @@ const Addstudent = () => {
     const canvas = canvasRef.current;
 
     if (!foundStudent) {
-      alert("Look up a student by Matric Number first.");
+      toast.error("Look up a student by Matric Number first.");
       return;
     }
 
     if (video && canvas) {
+      setEnrollingFace(true);
       const context = canvas.getContext('2d');
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -76,7 +82,8 @@ const Addstudent = () => {
       });
 
       if (fnError) {
-        alert(await getFunctionErrorMessage(fnError, 'Failed to enroll face.'));
+        setEnrollingFace(false);
+        toast.error(await getFunctionErrorMessage(fnError, 'Failed to enroll face.'));
         return;
       }
 
@@ -89,7 +96,8 @@ const Addstudent = () => {
         console.error('Face enrollment status update failed:', error.message);
       }
 
-      alert('Face enrolled successfully!');
+      setEnrollingFace(false);
+      toast.success('Face enrolled successfully!');
       setFoundStudent({ ...foundStudent, face_enrolled: true });
     }
   };
@@ -114,9 +122,10 @@ const Addstudent = () => {
           />
           <button
             onClick={handleLookup}
-            className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white transition-all hover:opacity-90"
+            disabled={lookingUp}
+            className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-2 font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
           >
-            Look Up
+            {lookingUp ? 'Looking up…' : 'Look Up'}
           </button>
         </div>
 
@@ -143,9 +152,9 @@ const Addstudent = () => {
             <h1 className='text-gray-800 font-bold text-[1.5rem] mb-4'>Please place your face properly</h1>
             <button
               onClick={captureAndSend}
-              disabled={!foundStudent}
+              disabled={!foundStudent || enrollingFace}
               className='w-sm rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-8 py-3 font-bold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed'>
-              Enroll Face
+              {enrollingFace ? 'Enrolling…' : 'Enroll Face'}
             </button>
           </div>
         </div>

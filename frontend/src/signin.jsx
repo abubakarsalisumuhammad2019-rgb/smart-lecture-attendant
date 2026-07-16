@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import toast from "react-hot-toast";
 import { supabase } from "./lib/supabaseClient";
 import { DEPARTMENTS_BY_FACULTY, getFacultyForDepartment } from "./lib/departments";
 import { getProgrammesForDepartment } from "./lib/programmes";
+import { deriveNounEmail } from "./lib/nounEmail";
 
 const HOME_BY_ROLE = { admin: "/dashboard", lecturer: "/lecturer", student: "/student" };
 
@@ -21,6 +23,8 @@ const Signin = ({ classname }) => {
   const [signupStep, setSignupStep] = useState(1);
   const [signupRole, setSignupRole] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [signingIn, setSigningIn] = useState(false);
+  const [signingUp, setSigningUp] = useState(false);
 
   const updateForm = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -44,55 +48,64 @@ const Signin = ({ classname }) => {
 
   const handleSignup = async () => {
     if (form.password !== form.retype) {
-      alert("Passwords do not match!");
+      toast.error("Passwords do not match!");
       return;
     }
-    if (!form.email || !form.full_name || !form.password) {
-      alert("Please fill in all required fields.");
+    if (!form.full_name || !form.password) {
+      toast.error("Please fill in all required fields.");
       return;
     }
     if (signupRole === "student" && !form.matric_number) {
-      alert("Matric Number is required.");
+      toast.error("Matric Number is required.");
+      return;
+    }
+    if (signupRole === "lecturer" && !form.email) {
+      toast.error("Email is required.");
       return;
     }
     if (signupRole === "lecturer" && !form.department) {
-      alert("Department is required.");
+      toast.error("Department is required.");
       return;
     }
 
     const metadata = { full_name: form.full_name, role: signupRole };
+    let signupEmail = form.email;
     if (signupRole === "student") {
       metadata.matric_number = form.matric_number;
       metadata.programme = form.programme;
       metadata.department = form.department;
       metadata.faculty = getFacultyForDepartment(form.department);
+      signupEmail = deriveNounEmail(form.matric_number);
     } else if (signupRole === "lecturer") {
       metadata.department = form.department;
       metadata.faculty = getFacultyForDepartment(form.department);
     }
 
+    setSigningUp(true);
     try {
       const { error } = await supabase.auth.signUp({
-        email: form.email,
+        email: signupEmail,
         password: form.password,
         options: { data: metadata },
       });
 
       if (!error) {
-        alert(
+        toast.success(
           signupRole === "lecturer"
             ? "Signup successful! Check your email to confirm your account. An admin will need to approve your account before you can sign in."
             : "Signup successful! Check your email to confirm your account before signing in.",
         );
         switchMode("login");
       } else if (/already (registered|exists)/i.test(error.message)) {
-        alert("Email already registered");
+        toast.error("Email already registered");
       } else {
-        alert(error.message);
+        toast.error(error.message);
       }
     } catch (err) {
-      alert("Something went wrong!");
+      toast.error("Something went wrong!");
       console.error(err);
+    } finally {
+      setSigningUp(false);
     }
   };
 
@@ -100,6 +113,7 @@ const Signin = ({ classname }) => {
     const emailOrUsername = document.querySelector("#signin-email").value;
     const password = document.querySelector("#signin-password").value;
 
+    setSigningIn(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: emailOrUsername,
@@ -107,7 +121,7 @@ const Signin = ({ classname }) => {
       });
 
       if (error) {
-        alert(error.message);
+        toast.error(error.message);
         return;
       }
 
@@ -123,7 +137,7 @@ const Signin = ({ classname }) => {
       }
 
       if (profile.status === "suspended") {
-        alert("Your account has been suspended. Contact an administrator.");
+        toast.error("Your account has been suspended. Contact an administrator.");
         await supabase.auth.signOut();
         return;
       }
@@ -135,8 +149,10 @@ const Signin = ({ classname }) => {
 
       window.location.href = HOME_BY_ROLE[profile.role] || "/dashboard";
     } catch (err) {
-      alert("Signin failed!");
+      toast.error("Signin failed!");
       console.error(err);
+    } finally {
+      setSigningIn(false);
     }
   };
 
@@ -225,9 +241,10 @@ const Signin = ({ classname }) => {
               </div>
               <button
                 onClick={handleSignin}
-                className="w-full rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-8 py-3 font-bold text-white transition-all hover:opacity-90 hover:shadow-lg"
+                disabled={signingIn}
+                className="w-full rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-8 py-3 font-bold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50"
               >
-                Sign In
+                {signingIn ? "Signing in…" : "Sign In"}
               </button>
             </>
           ) : (
@@ -284,16 +301,18 @@ const Signin = ({ classname }) => {
                         placeholder="Enter your full name"
                       />
                     </div>
-                    <div>
-                      <p className="mb-1 font-medium text-gray-500 text-sm">Email</p>
-                      <input
-                        type="email"
-                        value={form.email}
-                        onChange={(e) => updateForm("email", e.target.value)}
-                        className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
-                        placeholder="Enter your email"
-                      />
-                    </div>
+                    {signupRole === "lecturer" && (
+                      <div>
+                        <p className="mb-1 font-medium text-gray-500 text-sm">Email</p>
+                        <input
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => updateForm("email", e.target.value)}
+                          className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
+                          placeholder="Enter your email"
+                        />
+                      </div>
+                    )}
 
                     {signupRole === "student" ? (
                       <>
@@ -304,6 +323,15 @@ const Signin = ({ classname }) => {
                             onChange={(e) => updateForm("matric_number", e.target.value)}
                             className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
                             placeholder="e.g. NOU/2024/12345"
+                          />
+                        </div>
+                        <div>
+                          <p className="mb-1 font-medium text-gray-500 text-sm">Your NOUN Email</p>
+                          <input
+                            value={form.matric_number ? deriveNounEmail(form.matric_number) : ""}
+                            disabled
+                            className="w-full rounded-md border-2 border-gray-200 bg-gray-100 px-4 py-2 text-gray-500"
+                            placeholder="Auto-generated from matric number"
                           />
                         </div>
                         <div>
@@ -394,9 +422,10 @@ const Signin = ({ classname }) => {
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={handleSignup}
-                    className="w-full rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-8 py-3 font-bold text-white transition-all hover:opacity-90 hover:shadow-lg"
+                    disabled={signingUp}
+                    className="w-full rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-8 py-3 font-bold text-white transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50"
                   >
-                    Sign Up
+                    {signingUp ? "Signing up…" : "Sign Up"}
                   </motion.button>
                 </motion.div>
               )}
