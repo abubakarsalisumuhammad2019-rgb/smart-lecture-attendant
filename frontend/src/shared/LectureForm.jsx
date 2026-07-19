@@ -11,8 +11,8 @@ function addHours(datetimeLocalValue, hours) {
 }
 
 // Admin-only: schedules a lecture (course + facilitator + time). This does
-// NOT create the Zoom meeting -- the facilitator sets that up later from
-// their own dashboard (see lecturer/Dashboard.jsx "Set up Zoom").
+// NOT create the meeting itself -- the facilitator sets that up later from
+// their own dashboard (see lecturer/Dashboard.jsx "Set up Meeting").
 export function LectureForm({ onClose, onCreated }) {
   const [facilitators, setFacilitators] = useState([]);
   const [facilitatorId, setFacilitatorId] = useState("");

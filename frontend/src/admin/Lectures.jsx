@@ -4,6 +4,10 @@ import { supabase } from '../lib/supabaseClient';
 import { LectureForm } from '../shared/LectureForm';
 import { RescheduleModal } from '../shared/RescheduleModal';
 import { CancelModal } from '../shared/CancelModal';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
+import { RowActionsMenu } from '../shared/RowActionsMenu';
+import { Breadcrumbs } from '../components/Breadcrumbs';
+import { getFunctionErrorMessage } from '../lib/functionError';
 
 export default function Lectures() {
   const [lectures, setLectures] = useState([]);
@@ -12,6 +16,9 @@ export default function Lectures() {
   const [actionMessage, setActionMessage] = useState('');
   const [reschedulingLecture, setReschedulingLecture] = useState(null);
   const [cancelingLecture, setCancelingLecture] = useState(null);
+  const [endingLecture, setEndingLecture] = useState(null);
+  const [ending, setEnding] = useState(false);
+  const [reopeningId, setReopeningId] = useState(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -27,11 +34,50 @@ export default function Lectures() {
     loadData();
   }, []);
 
+  const handleConfirmEnd = async () => {
+    setEnding(true);
+
+    const { error } = await supabase.functions.invoke('update-lecture-schedule', {
+      body: { lecture_id: endingLecture.id, action: 'end' },
+    });
+
+    setEnding(false);
+
+    if (error) {
+      setActionMessage(await getFunctionErrorMessage(error, 'Failed to end the meeting.'));
+      setEndingLecture(null);
+      return;
+    }
+
+    setEndingLecture(null);
+    setActionMessage("Meeting ended. Students can't join until it's reopened.");
+    loadData();
+  };
+
+  const handleReopen = async (lectureId) => {
+    setReopeningId(lectureId);
+    setActionMessage('');
+
+    const { error } = await supabase.functions.invoke('update-lecture-schedule', {
+      body: { lecture_id: lectureId, action: 'reopen' },
+    });
+
+    setReopeningId(null);
+
+    if (error) {
+      setActionMessage(await getFunctionErrorMessage(error, 'Failed to reopen the meeting.'));
+      return;
+    }
+
+    setActionMessage('Meeting reopened.');
+    loadData();
+  };
+
   return (
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Lectures</p>
+          <Breadcrumbs items={[{ label: "Lectures" }]} />
           <h1 className="text-lg font-semibold">Lectures</h1>
         </div>
         <div className="flex gap-3">
@@ -82,6 +128,17 @@ export default function Lectures() {
         />
       )}
 
+      <ConfirmDialog
+        isOpen={!!endingLecture}
+        title="End this meeting?"
+        message="Students won't be able to join until it's reopened."
+        confirmLabel="End Meeting"
+        danger
+        submitting={ending}
+        onConfirm={handleConfirmEnd}
+        onClose={() => setEndingLecture(null)}
+      />
+
       <div className="bg-white rounded-[1.1rem] shadow-md p-4">
         <div className="overflow-x-auto">
           <table className="min-w-full table-auto border-separate border-spacing-y-2 text-sm text-gray-900">
@@ -92,7 +149,7 @@ export default function Lectures() {
                 <th className="text-left px-4 py-3">Facilitator</th>
                 <th className="text-left px-4 py-3">Start</th>
                 <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3">Zoom</th>
+                <th className="text-left px-4 py-3">Meeting</th>
                 <th className="text-left px-4 py-3 rounded-r-lg">Actions</th>
               </tr>
             </thead>
@@ -123,15 +180,33 @@ export default function Lectures() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Link to={`/admin/lectures/${lecture.id}/roster`} className="text-blue-600 hover:underline text-xs">Roster</Link>
-                        {lecture.status !== 'cancelled' && (
-                          <>
-                            <button onClick={() => setReschedulingLecture(lecture)} className="text-blue-600 hover:underline text-xs">Reschedule</button>
-                            <button onClick={() => setCancelingLecture(lecture)} className="text-red-500 hover:underline text-xs">Cancel</button>
-                          </>
-                        )}
-                      </div>
+                      <RowActionsMenu
+                        items={[
+                          { label: 'Roster', to: `/admin/lectures/${lecture.id}/roster` },
+                          lecture.status !== 'cancelled' &&
+                            lecture.status !== 'completed' && {
+                              label: 'Reschedule',
+                              onClick: () => setReschedulingLecture(lecture),
+                            },
+                          lecture.status !== 'cancelled' &&
+                            lecture.status !== 'completed' && {
+                              label: 'Cancel',
+                              danger: true,
+                              onClick: () => setCancelingLecture(lecture),
+                            },
+                          lecture.status !== 'cancelled' &&
+                            lecture.status !== 'completed' && {
+                              label: 'End Meeting',
+                              danger: true,
+                              onClick: () => setEndingLecture(lecture),
+                            },
+                          lecture.status === 'completed' && {
+                            label: reopeningId === lecture.id ? 'Reopening…' : 'Reopen Meeting',
+                            disabled: reopeningId === lecture.id,
+                            onClick: () => handleReopen(lecture.id),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))

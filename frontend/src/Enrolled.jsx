@@ -1,6 +1,7 @@
 import "./App.css";
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient';
+import { Breadcrumbs } from './components/Breadcrumbs';
 
 const Enrolled = () => {
   const [students, setStudents] = useState([]);
@@ -74,7 +75,7 @@ const Enrolled = () => {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Enrolled</p>
+          <Breadcrumbs items={[{ label: "Enrolled" }]} />
           <h1 className="text-lg font-semibold">Enrolled Students</h1>
         </div>
         <div className="relative">

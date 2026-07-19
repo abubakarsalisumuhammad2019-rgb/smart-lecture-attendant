@@ -1,8 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { handleCorsPreflight, json } from "./_shared/cors.ts";
 import { getServiceClient, getCallerProfile } from "./_shared/authContext.ts";
-import { zoomFetch } from "./_shared/zoom.ts";
 
+// Cancels or reschedules a lecture. A Jitsi room isn't an external created
+// resource the way a Zoom meeting was, so there's nothing to call out to --
+// this just updates the lecture's own schedule/status fields.
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -13,7 +15,7 @@ Deno.serve(async (req: Request) => {
     if (!caller) return json({ error: "unauthorized" }, 401);
 
     const body = await req.json();
-    const { lecture_id, action } = body; // action: 'reschedule' | 'cancel'
+    const { lecture_id, action } = body; // action: 'reschedule' | 'cancel' | 'end' | 'reopen'
 
     if (!lecture_id || !action) {
       return json({ error: "missing_fields" }, 400);
@@ -40,14 +42,6 @@ Deno.serve(async (req: Request) => {
       const { cancel_reason } = body;
       if (!cancel_reason) return json({ error: "cancel_reason_required" }, 400);
 
-      // No Zoom meeting to cancel yet if the facilitator hasn't set one up.
-      if (lecture.zoom_meeting_id) {
-        const zoomRes = await zoomFetch(`/meetings/${lecture.zoom_meeting_id}`, { method: "DELETE" });
-        if (!zoomRes.ok && zoomRes.status !== 404) {
-          return json({ error: "zoom_cancel_failed", detail: await zoomRes.text() }, 502);
-        }
-      }
-
       const { data: updated, error: updateErr } = await service
         .from("lectures")
         .update({ status: "cancelled", cancel_reason })
@@ -65,19 +59,6 @@ Deno.serve(async (req: Request) => {
         return json({ error: "missing_reschedule_fields" }, 400);
       }
 
-      // No Zoom meeting to reschedule yet if the facilitator hasn't set one up
-      // -- this is a pure schedule change until then.
-      if (lecture.zoom_meeting_id) {
-        const zoomRes = await zoomFetch(`/meetings/${lecture.zoom_meeting_id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ start_time, duration: duration_minutes, timezone: "UTC" }),
-        });
-
-        if (!zoomRes.ok) {
-          return json({ error: "zoom_reschedule_failed", detail: await zoomRes.text() }, 502);
-        }
-      }
-
       const endTime = new Date(new Date(start_time).getTime() + duration_minutes * 60_000).toISOString();
 
       const { data: updated, error: updateErr } = await service
@@ -88,6 +69,38 @@ Deno.serve(async (req: Request) => {
           start_time,
           end_time: endTime,
         })
+        .eq("id", lecture_id)
+        .select()
+        .single();
+
+      if (updateErr) return json({ error: "update_failed", detail: updateErr.message }, 500);
+      return json({ lecture: updated }, 200);
+    }
+
+    if (action === "end") {
+      if (lecture.status === "cancelled" || lecture.status === "completed") {
+        return json({ error: "already_ended_or_cancelled" }, 400);
+      }
+
+      const { data: updated, error: updateErr } = await service
+        .from("lectures")
+        .update({ status: "completed" })
+        .eq("id", lecture_id)
+        .select()
+        .single();
+
+      if (updateErr) return json({ error: "update_failed", detail: updateErr.message }, 500);
+      return json({ lecture: updated }, 200);
+    }
+
+    if (action === "reopen") {
+      if (lecture.status !== "completed") {
+        return json({ error: "not_ended" }, 400);
+      }
+
+      const { data: updated, error: updateErr } = await service
+        .from("lectures")
+        .update({ status: "scheduled" })
         .eq("id", lecture_id)
         .select()
         .single();

@@ -27,7 +27,7 @@ export function LecturerLayout() {
         <span className="text-white font-semibold">Lecturer Page</span>
         <span className="w-9" />
       </div>
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6">
         <Sidebar
           title="Lecturer Page"
           items={items}

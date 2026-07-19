@@ -7,6 +7,7 @@ import { DEPARTMENTS_BY_FACULTY, getFacultyForDepartment } from "../lib/departme
 import { getProgrammesForDepartment } from "../lib/programmes";
 import { deriveNounEmail } from "../lib/nounEmail";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 
 // Supabase Auth's default minimum password length is 6 -- "12345" would be
 // rejected outright, so bulk-created accounts get this instead. Lecturers can
@@ -282,7 +283,7 @@ export default function Users() {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Users</p>
+          <Breadcrumbs items={[{ label: "Users" }]} />
           <h1 className="text-lg font-semibold">Users</h1>
         </div>
       </div>

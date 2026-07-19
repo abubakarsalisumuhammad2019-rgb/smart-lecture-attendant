@@ -33,7 +33,7 @@ export function RescheduleModal({ lecture, onClose, onRescheduled }) {
     setSubmitting(true);
     setError('');
 
-    const { error: fnError } = await supabase.functions.invoke('zoom-update-meeting', {
+    const { error: fnError } = await supabase.functions.invoke('update-lecture-schedule', {
       body: {
         lecture_id: lecture.id,
         action: 'reschedule',

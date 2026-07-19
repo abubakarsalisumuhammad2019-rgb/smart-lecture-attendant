@@ -4,9 +4,10 @@ import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { PageLoader } from '../components/PageLoader';
+import { Breadcrumbs } from '../components/Breadcrumbs';
 
 export default function LecturerSettings() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -38,6 +39,7 @@ export default function LecturerSettings() {
       toast.error(error.message);
       return;
     }
+    await refreshProfile();
     toast.success('Profile updated.');
   };
 
@@ -72,7 +74,7 @@ export default function LecturerSettings() {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Settings</p>
+          <Breadcrumbs items={[{ label: "Settings" }]} />
           <h1 className="text-lg font-semibold">Settings</h1>
         </div>
       </div>

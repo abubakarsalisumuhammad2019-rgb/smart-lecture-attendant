@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { FaBars, FaHome, FaLayerGroup, FaCog } from 'react-icons/fa';
 import { Sidebar } from './Sidebar';
-import { useZoomAttendanceSession } from '../lib/useZoomAttendanceSession';
 
 const items = [
   { to: '/student/dashboard', icon: FaHome, label: 'Dashboard', iconClass: 'text-purple-600' },
@@ -14,17 +13,6 @@ const items = [
 export function StudentLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const zoomSession = useZoomAttendanceSession();
-
-  // Last-resort safety net: only fires on a real unmount of the whole student
-  // shell (logout, role change) -- not on ordinary in-app navigation, since
-  // StudentLayout itself stays mounted across route changes within /student.
-  useEffect(() => {
-    return () => {
-      zoomSession.endSession();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="min-h-screen p-4 bg-split">
@@ -39,7 +27,7 @@ export function StudentLayout() {
         <span className="text-white font-semibold">Student Page</span>
         <span className="w-9" />
       </div>
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-6">
         <Sidebar
           title="Student Page"
           items={items}
@@ -55,7 +43,7 @@ export function StudentLayout() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18, ease: 'easeOut' }}
             >
-              <Outlet context={zoomSession} />
+              <Outlet />
             </motion.div>
           </AnimatePresence>
         </div>

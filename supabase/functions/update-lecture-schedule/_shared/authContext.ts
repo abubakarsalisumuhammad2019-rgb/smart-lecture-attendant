@@ -7,6 +7,9 @@ export function getServiceClient(): SupabaseClient {
   );
 }
 
+// Validates the caller's JWT and returns their profile row (role/status/etc.),
+// or null if unauthenticated / no matching profile. Callers do their own
+// authorization checks on the returned profile -- this only establishes identity.
 export async function getCallerProfile(req: Request, service: SupabaseClient) {
   const authHeader = req.headers.get("Authorization") ?? "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "");

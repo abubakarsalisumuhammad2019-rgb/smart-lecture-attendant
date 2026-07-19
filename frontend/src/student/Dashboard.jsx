@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { FaLayerGroup, FaCalendarCheck, FaBook } from 'react-icons/fa';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { Breadcrumbs } from '../components/Breadcrumbs';
 
 const COLOR_MAP = {
   teal: 'bg-teal-100 text-teal-600',
@@ -77,12 +78,16 @@ export default function Dashboard() {
     (l) => (l.status === 'scheduled' || l.status === 'rescheduled') && new Date(l.start_time) >= now
   );
   const nextUp = [...upcoming].sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0];
+  const previousMeetings = lectures
+    .filter((l) => l.status !== 'cancelled' && new Date(l.end_time) < now)
+    .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
+    .slice(0, 3);
 
   return (
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Dashboard</p>
+          <Breadcrumbs items={[{ label: "Dashboard" }]} />
           <h1 className="text-lg font-semibold">Dashboard</h1>
         </div>
       </div>
@@ -116,8 +121,34 @@ export default function Dashboard() {
                 Join
               </Link>
             ) : (
-              <span className="text-sm text-orange-500 font-medium">Zoom not set up yet</span>
+              <span className="text-sm text-orange-500 font-medium">Meeting not set up yet</span>
             )}
+          </div>
+        </motion.div>
+      )}
+
+      {!loading && previousMeetings.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut', delay: 0.05 }}
+          className="bg-white rounded-[1.1rem] shadow-md p-4 sm:p-6 mb-6"
+        >
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Previous Meetings</p>
+          <div className="flex flex-col divide-y divide-gray-100">
+            {previousMeetings.map((lecture) => (
+              <div key={lecture.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                <div>
+                  <h3 className="text-gray-900 font-medium text-sm">{lecture.topic}</h3>
+                  <p className="text-xs text-gray-500">
+                    {lecture.courses?.course_code} &middot; {new Date(lecture.start_time).toLocaleString()}
+                  </p>
+                </div>
+                <Link to={`/student/lectures/${lecture.id}/join`} className="text-blue-600 hover:underline text-xs shrink-0">
+                  View Details
+                </Link>
+              </div>
+            ))}
           </div>
         </motion.div>
       )}

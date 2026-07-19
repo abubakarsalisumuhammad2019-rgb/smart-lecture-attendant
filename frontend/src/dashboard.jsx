@@ -3,6 +3,7 @@ import { FaUserGraduate, FaChalkboardTeacher, FaLayerGroup, FaBook } from "react
 import { motion } from "motion/react";
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabaseClient';
+import { Breadcrumbs } from './components/Breadcrumbs';
 
 const COLOR_MAP = {
   green: 'bg-green-100 text-green-600',
@@ -70,7 +71,7 @@ const Dashboard = () => {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Dashboard</p>
+          <Breadcrumbs items={[{ label: "Dashboard" }]} />
           <h1 className="text-lg font-semibold">Dashboard</h1>
         </div>
       </div>

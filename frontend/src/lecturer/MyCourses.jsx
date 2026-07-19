@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { Breadcrumbs } from '../components/Breadcrumbs';
 
 export default function MyCourses() {
   const { profile } = useAuth();
@@ -51,7 +52,7 @@ export default function MyCourses() {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / My Courses</p>
+          <Breadcrumbs items={[{ label: "My Courses" }]} />
           <h1 className="text-lg font-semibold">My Courses</h1>
         </div>
       </div>

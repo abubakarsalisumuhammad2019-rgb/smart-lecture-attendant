@@ -2,13 +2,12 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { handleCorsPreflight, json } from "./_shared/cors.ts";
 import { getServiceClient, getCallerProfile } from "./_shared/authContext.ts";
 
-// Student-only. Called from the student's own already-authenticated browser
-// (JoinLecture.jsx) when a Zoom join window opens/closes -- Zoom's free plan
-// has no server-side join/leave webhook available without paid registration,
-// so attendance is client-reported instead. Identity is always the caller's
-// own JWT-resolved profile, never client-supplied, and event_time is always
-// server-stamped at receipt (never taken from the client) so a student can't
-// inflate their duration by lying about the clock.
+// Student-only. Called directly by the browser's embedded Jitsi IFrame API
+// listeners (videoConferenceJoined/videoConferenceLeft in JoinLecture.jsx) --
+// a real signal from inside the meeting itself, not a self-report. Identity
+// is always the caller's own JWT-resolved profile, never client-supplied, and
+// event_time is always server-stamped at receipt (never taken from the
+// client) so a student can't inflate their duration by lying about the clock.
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -50,6 +49,31 @@ Deno.serve(async (req: Request) => {
 
     if (lecture.status === "cancelled") {
       return json({ error: "lecture_cancelled" }, 400);
+    }
+
+    // "joined" is the only event type that can start earning credit, so it's
+    // the only one gated by lecture status/time -- "left" must still be able
+    // to close out a session that was already legitimately open, even if the
+    // lecture flips to "completed" or its end_time passes in that instant.
+    if (event_type === "joined") {
+      if (lecture.status === "completed") {
+        return json({ error: "lecture_ended" }, 400);
+      }
+
+      const { data: windowSetting } = await service
+        .from("app_settings")
+        .select("value")
+        .eq("key", "join_window_minutes")
+        .maybeSingle();
+      const joinWindowMinutes = windowSetting?.value ? Number(windowSetting.value) : 0;
+
+      const now = Date.now();
+      const opensAt = new Date(lecture.start_time).getTime() - joinWindowMinutes * 60_000;
+      const endsAt = new Date(lecture.end_time).getTime();
+
+      if (now < opensAt || now > endsAt) {
+        return json({ error: "outside_join_window" }, 400);
+      }
     }
 
     const eventTime = new Date().toISOString();

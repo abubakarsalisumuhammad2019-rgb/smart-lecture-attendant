@@ -43,7 +43,7 @@ export function Sidebar({ title, items, isOpen, onClose }) {
       <div
         className={`fixed inset-y-0 left-0 z-50 w-full sm:w-1/2 max-w-xs overflow-y-auto bg-white shadow-lg p-4 flex flex-col justify-between transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:static lg:z-auto lg:w-64 lg:max-w-none lg:translate-x-0 lg:rounded-2xl lg:shadow-lg lg:min-h-[90vh]`}
+        } lg:sticky lg:top-4 lg:z-auto lg:w-64 lg:max-w-none lg:translate-x-0 lg:rounded-2xl lg:shadow-lg lg:h-[90vh]`}
       >
         <div>
           <div className="flex items-center justify-between mb-6 lg:justify-center lg:relative">

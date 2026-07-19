@@ -4,11 +4,12 @@ import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { PageLoader } from '../components/PageLoader';
+import { Breadcrumbs } from '../components/Breadcrumbs';
 
-const KEYS = ['active_academic_session', 'active_semester', 'facilitation_start', 'facilitation_end', 'min_attendance_minutes', 'max_credit_units'];
+const KEYS = ['active_academic_session', 'active_semester', 'facilitation_start', 'facilitation_end', 'min_attendance_minutes', 'max_credit_units', 'join_window_minutes'];
 
 export default function SemesterSettings() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [values, setValues] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,6 +69,7 @@ export default function SemesterSettings() {
       toast.error(error.message);
       return;
     }
+    await refreshProfile();
     toast.success('Profile updated.');
   };
 
@@ -102,7 +104,7 @@ export default function SemesterSettings() {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Settings</p>
+          <Breadcrumbs items={[{ label: "Settings" }]} />
           <h1 className="text-lg font-semibold">Settings</h1>
         </div>
       </div>
@@ -268,6 +270,18 @@ export default function SemesterSettings() {
               placeholder="e.g. 24"
             />
             <p className="text-[11px] text-gray-400">Students are blocked from enrolling in more courses once their selected units reach this cap.</p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Join Window Before Start (minutes)</label>
+            <input
+              type="number"
+              min="0"
+              value={values.join_window_minutes ?? ''}
+              onChange={(e) => setValues({ ...values, join_window_minutes: e.target.value })}
+              className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
+              placeholder="e.g. 20"
+            />
+            <p className="text-[11px] text-gray-400">Lecturers and students can't join a lecture's meeting until this many minutes before its start time.</p>
           </div>
         </div>
 

@@ -18,7 +18,7 @@ const EMPTY_FORM = {
   department: "",
 };
 
-const Signin = ({ classname }) => {
+const Signin = () => {
   const [authMode, setAuthMode] = useState("login");
   const [signupStep, setSignupStep] = useState(1);
   const [signupRole, setSignupRole] = useState(null);

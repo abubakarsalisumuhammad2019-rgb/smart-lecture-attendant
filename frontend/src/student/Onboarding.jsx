@@ -72,7 +72,7 @@ export default function Onboarding() {
       const course = courses.find((c) => c.id === courseId);
       const wouldBeUnits = [...prev].reduce((sum, id) => sum + unitsOf(id), 0) + (course?.credit_units || 0);
       if (maxCreditUnits && wouldBeUnits > maxCreditUnits) {
-        setCapMessage(`You've reached the ${maxCreditUnits}-unit maximum for this semester -- deselect a course to add a different one.`);
+        setCapMessage(`You've reached the ${maxCreditUnits}-unit maximum for this semester. Deselect a course to add a different one.`);
         return prev;
       }
       next.add(courseId);
@@ -94,7 +94,7 @@ export default function Onboarding() {
 
       if (matched.length === 0) {
         setSlipStatus('error');
-        setSlipMessage("Couldn't find any course codes in this file (likely a scanned image) -- select your courses manually below.");
+        setSlipMessage("Couldn't find any course codes in this file (likely a scanned image). Select your courses manually below.");
       } else {
         let runningUnits = 0;
         const accepted = [];
@@ -113,13 +113,13 @@ export default function Onboarding() {
         setSlipMatchedIds(new Set(accepted.map((c) => c.id)));
         setSlipStatus('parsed');
         const skippedNote = skipped.length > 0
-          ? ` ${skipped.length} course${skipped.length === 1 ? '' : 's'} (${skipped.map((c) => c.course_code).join(', ')}) skipped -- adding them would exceed the ${maxCreditUnits}-unit semester maximum.`
+          ? ` ${skipped.length} course${skipped.length === 1 ? '' : 's'} (${skipped.map((c) => c.course_code).join(', ')}) skipped. Adding them would exceed the ${maxCreditUnits}-unit semester maximum.`
           : '';
-        setSlipMessage(`Matched ${matched.length} course${matched.length === 1 ? '' : 's'} from your slip -- review the pre-ticked list below and confirm.${skippedNote}`);
+        setSlipMessage(`Matched ${matched.length} course${matched.length === 1 ? '' : 's'} from your slip. Review the pre-ticked list below and confirm.${skippedNote}`);
       }
-    } catch (err) {
+    } catch {
       setSlipStatus('error');
-      setSlipMessage("Couldn't read this PDF -- select your courses manually below.");
+      setSlipMessage("Couldn't read this PDF. Select your courses manually below.");
     }
 
     e.target.value = '';
@@ -173,7 +173,7 @@ export default function Onboarding() {
 
     if (fnError) {
       setEnrollingFace(false);
-      setFaceError(await getFunctionErrorMessage(fnError, 'Could not enroll your face -- try again.'));
+      setFaceError(await getFunctionErrorMessage(fnError, 'Could not enroll your face. Try again.'));
       return;
     }
 
@@ -271,7 +271,7 @@ export default function Onboarding() {
 
             <p className="text-xs text-gray-400 mb-4">
               {checkedCourseIds.size} course{checkedCourseIds.size === 1 ? '' : 's'} selected
-              {maxCreditUnits ? ` -- ${selectedUnits} of ${maxCreditUnits} units used` : ''}.
+              {maxCreditUnits ? ` · ${selectedUnits} of ${maxCreditUnits} units used` : ''}.
             </p>
 
             <button

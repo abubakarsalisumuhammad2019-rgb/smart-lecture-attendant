@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
+import { Breadcrumbs } from '../components/Breadcrumbs';
 
 export default function MyCourses() {
   const { profile } = useAuth();
@@ -122,7 +123,7 @@ export default function MyCourses() {
         return sum + (c?.credit_units || 0);
       }, 0) + (course?.credit_units || 0);
       if (maxCreditUnits && wouldBeUnits > maxCreditUnits) {
-        setCapMessage(`You've reached the ${maxCreditUnits}-unit maximum for this semester -- deselect a course to add a different one.`);
+        setCapMessage(`You've reached the ${maxCreditUnits}-unit maximum for this semester. Deselect a course to add a different one.`);
         return prev;
       }
       next.add(courseId);
@@ -165,7 +166,7 @@ export default function MyCourses() {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / My Courses</p>
+          <Breadcrumbs items={[{ label: "My Courses" }]} />
           <h1 className="text-lg font-semibold">My Courses</h1>
         </div>
       </div>
@@ -289,7 +290,7 @@ export default function MyCourses() {
 
             <p className="text-xs text-gray-400 mb-4">
               {checkedCourseIds.size} course{checkedCourseIds.size === 1 ? '' : 's'} selected
-              {maxCreditUnits ? ` -- ${totalUnits} of ${maxCreditUnits} units used` : ''}.
+              {maxCreditUnits ? ` · ${totalUnits} of ${maxCreditUnits} units used` : ''}.
             </p>
 
             <div className="flex justify-end">

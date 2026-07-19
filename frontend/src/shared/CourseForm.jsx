@@ -45,14 +45,30 @@ export function CourseForm({ onClose, onCreated }) {
     setSubmitting(true);
     setError("");
 
+    // Re-fetched here rather than trusting the activeSession/activeSemester
+    // state set on mount -- that fetch is async, and a submit that beats it
+    // back (or a slow connection) would otherwise write a blank
+    // academic_session, which silently fails the facilitator-assignment
+    // check in create-lecture later (it matches on academic_session).
+    const { data: settingsRows } = await supabase.from("app_settings").select("*");
+    const map = Object.fromEntries((settingsRows || []).map((row) => [row.key, row.value]));
+    const session = map.active_academic_session || "";
+    const semester = map.active_semester || "";
+
+    if (!session || !semester) {
+      setSubmitting(false);
+      setError("Active academic session/semester isn't set. Configure it in Admin → Settings first.");
+      return;
+    }
+
     const { error: insertErr } = await supabase.from("courses").insert({
       course_code: courseCode.trim().toUpperCase(),
       course_title: courseTitle.trim(),
       credit_units: creditUnits ? Number(creditUnits) : null,
       programme: programme || null,
       level: level ? Number(level) : null,
-      semester: activeSemester,
-      academic_session: activeSession,
+      semester,
+      academic_session: session,
     });
 
     setSubmitting(false);

@@ -3,8 +3,9 @@ import { handleCorsPreflight, json } from "./_shared/cors.ts";
 import { getServiceClient, getCallerProfile } from "./_shared/authContext.ts";
 
 // Admin-only: schedules a lecture (course + facilitator + time) without
-// touching Zoom. The facilitator later calls zoom-create-meeting on this
-// lecture_id to attach the real meeting -- see that function's comments.
+// setting up the meeting itself. The facilitator later calls
+// jitsi-create-meeting on this lecture_id to attach the real meeting -- see
+// that function's comments.
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
   if (preflight) return preflight;
@@ -84,7 +85,7 @@ Deno.serve(async (req: Request) => {
             facilitator_id,
             topic,
             venue: venue ?? null,
-            meeting_platform: "zoom",
+            meeting_platform: "jitsi",
             start_time,
             end_time: endTime,
             status: "scheduled",

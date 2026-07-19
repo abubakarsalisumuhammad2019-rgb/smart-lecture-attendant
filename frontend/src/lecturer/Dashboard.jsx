@@ -2,11 +2,16 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { FaLayerGroup, FaBook, FaCalendarCheck, FaVideo } from "react-icons/fa";
+import { FiHelpCircle } from "react-icons/fi";
 import { useAuth } from "../lib/AuthContext";
 import { getFunctionErrorMessage } from "../lib/functionError";
+import { getMeetingAvailability } from "../lib/lectureTiming";
 import { supabase } from "../lib/supabaseClient";
 import { CancelModal } from "../shared/CancelModal";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { RescheduleModal } from "../shared/RescheduleModal";
+import { RowActionsMenu } from "../shared/RowActionsMenu";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 
 const COLOR_MAP = {
   teal: "bg-teal-100 text-teal-600",
@@ -39,12 +44,16 @@ function StatCard({ icon: Icon, color, label, value, index }) {
 export default function Dashboard() {
   const { profile } = useAuth();
   const [lectures, setLectures] = useState([]);
-  const [counts, setCounts] = useState({ courses: 0, upcoming: 0, zoomPending: 0 });
+  const [counts, setCounts] = useState({ courses: 0, upcoming: 0, meetingPending: 0 });
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState("");
   const [settingUpId, setSettingUpId] = useState(null);
   const [reschedulingLecture, setReschedulingLecture] = useState(null);
   const [cancelingLecture, setCancelingLecture] = useState(null);
+  const [joinWindowMinutes, setJoinWindowMinutes] = useState(0);
+  const [endingLecture, setEndingLecture] = useState(null);
+  const [ending, setEnding] = useState(false);
+  const [reopeningId, setReopeningId] = useState(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -52,8 +61,11 @@ export default function Dashboard() {
     const { data: settingsRows } = await supabase.from("app_settings").select("*");
     const settingsMap = Object.fromEntries((settingsRows || []).map((s) => [s.key, s.value]));
     const activeSession = settingsMap.active_academic_session || "";
+    setJoinWindowMinutes(
+      settingsMap.join_window_minutes ? Number(settingsMap.join_window_minutes) : 0,
+    );
 
-    const [lecturesRes, coursesCountRes, hostSecretsRes] = await Promise.all([
+    const [lecturesRes, coursesCountRes] = await Promise.all([
       supabase
         .from("lectures")
         .select("*, courses(course_code, course_title), profiles(full_name)")
@@ -64,32 +76,20 @@ export default function Dashboard() {
         .select("id", { count: "exact", head: true })
         .eq("lecturer_id", profile.id)
         .eq("academic_session", activeSession),
-      // RLS scopes this to the lecturer's own lectures already -- the real
-      // Zoom "start as host" link, as opposed to meeting_web_url (join_url),
-      // which just drops anyone -- lecturer included -- into the attendee
-      // waiting room since every meeting is created under one shared
-      // institutional Zoom account, not the lecturer's own.
-      supabase.from("lecture_host_secrets").select("lecture_id, meeting_start_url"),
     ]);
 
-    const hostUrlByLectureId = Object.fromEntries(
-      (hostSecretsRes.data || []).map((h) => [h.lecture_id, h.meeting_start_url]),
-    );
-    const allLectures = (lecturesRes.data || []).map((l) => ({
-      ...l,
-      host_start_url: hostUrlByLectureId[l.id] || null,
-    }));
+    const allLectures = lecturesRes.data || [];
     const now = new Date();
     const upcoming = allLectures.filter(
       (l) => (l.status === "scheduled" || l.status === "rescheduled") && new Date(l.start_time) >= now
     );
-    const zoomPending = allLectures.filter((l) => !l.meeting_web_url && l.status !== "cancelled");
+    const meetingPending = allLectures.filter((l) => !l.meeting_web_url && l.status !== "cancelled");
 
     setLectures(allLectures);
     setCounts({
       courses: coursesCountRes.count || 0,
       upcoming: upcoming.length,
-      zoomPending: zoomPending.length,
+      meetingPending: meetingPending.length,
     });
     setLoading(false);
   };
@@ -99,22 +99,61 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 
-  const handleSetUpZoom = async (lectureId) => {
+  const handleSetUpMeeting = async (lectureId) => {
     setSettingUpId(lectureId);
     setActionMessage("");
 
-    const { error } = await supabase.functions.invoke("zoom-create-meeting", {
+    const { error } = await supabase.functions.invoke("jitsi-create-meeting", {
       body: { lecture_id: lectureId },
     });
 
     setSettingUpId(null);
 
     if (error) {
-      setActionMessage(await getFunctionErrorMessage(error, "Failed to set up Zoom."));
+      setActionMessage(await getFunctionErrorMessage(error, "Failed to set up the meeting."));
       return;
     }
 
-    setActionMessage("Zoom session created.");
+    setActionMessage("Meeting created.");
+    loadData();
+  };
+
+  const handleConfirmEnd = async () => {
+    setEnding(true);
+
+    const { error } = await supabase.functions.invoke("update-lecture-schedule", {
+      body: { lecture_id: endingLecture.id, action: "end" },
+    });
+
+    setEnding(false);
+
+    if (error) {
+      setActionMessage(await getFunctionErrorMessage(error, "Failed to end the meeting."));
+      setEndingLecture(null);
+      return;
+    }
+
+    setEndingLecture(null);
+    setActionMessage("Meeting ended. Students can't join until it's reopened.");
+    loadData();
+  };
+
+  const handleReopen = async (lectureId) => {
+    setReopeningId(lectureId);
+    setActionMessage("");
+
+    const { error } = await supabase.functions.invoke("update-lecture-schedule", {
+      body: { lecture_id: lectureId, action: "reopen" },
+    });
+
+    setReopeningId(null);
+
+    if (error) {
+      setActionMessage(await getFunctionErrorMessage(error, "Failed to reopen the meeting."));
+      return;
+    }
+
+    setActionMessage("Meeting reopened.");
     loadData();
   };
 
@@ -122,12 +161,17 @@ export default function Dashboard() {
   const nextUp = lectures
     .filter((l) => (l.status === "scheduled" || l.status === "rescheduled") && new Date(l.start_time) >= now)
     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0];
+  const nextUpAvailability = nextUp ? getMeetingAvailability(nextUp, joinWindowMinutes) : null;
+  const previousMeetings = lectures
+    .filter((l) => l.status !== "cancelled" && new Date(l.end_time) < now)
+    .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
+    .slice(0, 3);
 
   return (
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Dashboard</p>
+          <Breadcrumbs items={[{ label: "Dashboard" }]} />
           <h1 className="text-lg font-semibold">Dashboard</h1>
         </div>
       </div>
@@ -135,7 +179,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <StatCard index={0} icon={FaLayerGroup} color="teal" label="Assigned Courses" value={counts.courses} />
         <StatCard index={1} icon={FaCalendarCheck} color="green" label="Upcoming Lectures" value={counts.upcoming} />
-        <StatCard index={2} icon={FaVideo} color="orange" label="Zoom Pending Setup" value={counts.zoomPending} />
+        <StatCard index={2} icon={FaVideo} color="orange" label="Meeting Pending Setup" value={counts.meetingPending} />
       </div>
 
       {actionMessage && (
@@ -173,26 +217,73 @@ export default function Dashboard() {
                 <button onClick={() => setCancelingLecture(nextUp)} className="text-red-500 hover:underline text-xs">
                   Cancel
                 </button>
+                <button onClick={() => setEndingLecture(nextUp)} className="text-red-500 hover:underline text-xs">
+                  End Meeting
+                </button>
               </div>
             </div>
-            {nextUp.meeting_web_url ? (
-              <a
-                href={nextUp.host_start_url || nextUp.meeting_web_url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-5 py-2 font-bold text-white hover:opacity-90 text-center"
-              >
-                {nextUp.host_start_url ? "Start Meeting" : "Join Zoom"}
-              </a>
-            ) : (
-              <button
-                onClick={() => handleSetUpZoom(nextUp.id)}
-                disabled={settingUpId === nextUp.id}
-                className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-5 py-2 font-bold text-white hover:opacity-90 disabled:opacity-50"
-              >
-                {settingUpId === nextUp.id ? "Setting up…" : "Set up Zoom"}
-              </button>
-            )}
+            <div className="flex flex-col items-end gap-1">
+              {nextUp.meeting_web_url ? (
+                nextUpAvailability.state === "open" ? (
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={nextUp.meeting_web_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-5 py-2 font-bold text-white hover:opacity-90 text-center"
+                    >
+                      Join Meeting
+                    </a>
+                    <div className="group relative">
+                      <FiHelpCircle size={16} className="text-gray-400 hover:text-gray-600 cursor-help" />
+                      <div className="hidden group-hover:block absolute right-0 top-full mt-2 w-56 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-10">
+                        First time in this meeting? Sign in with any free Google, GitHub, or Facebook account when the tab opens to start it as host.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="rounded-xl bg-gray-100 text-gray-500 px-5 py-2 font-bold text-center text-sm">
+                    {nextUpAvailability.state === "too-early"
+                      ? `Opens ${nextUpAvailability.opensAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+                      : "Meeting ended"}
+                  </span>
+                )
+              ) : (
+                <button
+                  onClick={() => handleSetUpMeeting(nextUp.id)}
+                  disabled={settingUpId === nextUp.id}
+                  className="rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 px-5 py-2 font-bold text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {settingUpId === nextUp.id ? "Setting up…" : "Set up Meeting"}
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {!loading && previousMeetings.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: "easeOut", delay: 0.05 }}
+          className="bg-white rounded-[1.1rem] shadow-md p-4 sm:p-6 mb-6"
+        >
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Previous Meetings</p>
+          <div className="flex flex-col divide-y divide-gray-100">
+            {previousMeetings.map((lecture) => (
+              <div key={lecture.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                <div>
+                  <h3 className="text-gray-900 font-medium text-sm">{lecture.topic}</h3>
+                  <p className="text-xs text-gray-500">
+                    {lecture.courses?.course_code} &middot; {new Date(lecture.start_time).toLocaleString()}
+                  </p>
+                </div>
+                <Link to={`/lecturer/lectures/${lecture.id}/roster`} className="text-blue-600 hover:underline text-xs shrink-0">
+                  View Roster
+                </Link>
+              </div>
+            ))}
           </div>
         </motion.div>
       )}
@@ -221,13 +312,32 @@ export default function Dashboard() {
         />
       )}
 
+      <ConfirmDialog
+        isOpen={!!endingLecture}
+        title="End this meeting?"
+        message="Students won't be able to join until it's reopened."
+        confirmLabel="End Meeting"
+        danger
+        submitting={ending}
+        onConfirm={handleConfirmEnd}
+        onClose={() => setEndingLecture(null)}
+      />
+
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.15, duration: 0.3 }}
         className="bg-white rounded-[1.1rem] shadow-md p-4"
       >
-        <h2 className="text-gray-800 ml-2 text-md font-bold mb-4">My Lectures</h2>
+        <div className="flex items-center gap-2 ml-2 mb-4">
+          <h2 className="text-gray-800 text-md font-bold">My Lectures</h2>
+          <div className="group relative flex items-center">
+            <FiHelpCircle size={14} className="text-gray-400 hover:text-gray-600 cursor-help" />
+            <div className="hidden group-hover:block absolute left-0 top-full mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg z-10">
+              Joining a meeting for the first time? Sign in with any free Google, GitHub, or Facebook account on the Jitsi screen to start it as host. Otherwise it will sit on "waiting for a moderator" for everyone.
+            </div>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full table-auto border-separate border-spacing-y-2 text-sm text-gray-900">
             <thead>
@@ -236,7 +346,7 @@ export default function Dashboard() {
                 <th className="text-left px-4 py-3">Course</th>
                 <th className="text-left px-4 py-3">Start</th>
                 <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3">Zoom</th>
+                <th className="text-left px-4 py-3">Meeting</th>
                 <th className="text-left px-4 py-3 rounded-r-lg">Actions</th>
               </tr>
             </thead>
@@ -248,7 +358,9 @@ export default function Dashboard() {
                   </td>
                 </tr>
               ) : lectures.length > 0 ? (
-                lectures.map((lecture) => (
+                lectures.map((lecture) => {
+                  const rowAvailability = getMeetingAvailability(lecture, joinWindowMinutes);
+                  return (
                   <tr key={lecture.id} className="hover:bg-[#f0f4f8]">
                     <td className="px-4 py-3">{lecture.topic}</td>
                     <td className="px-4 py-3">{lecture.courses?.course_code}</td>
@@ -276,43 +388,68 @@ export default function Dashboard() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        {!lecture.meeting_web_url && lecture.status !== "cancelled" && (
-                          <button
-                            onClick={() => handleSetUpZoom(lecture.id)}
-                            disabled={settingUpId === lecture.id}
-                            className="text-blue-600 hover:underline text-xs disabled:opacity-50"
-                          >
-                            {settingUpId === lecture.id ? "Setting up…" : "Set up Zoom"}
-                          </button>
-                        )}
-                        {lecture.meeting_web_url && lecture.status !== "cancelled" && (
+                      <div className="flex items-center gap-2">
+                        {!lecture.meeting_web_url &&
+                          lecture.status !== "cancelled" &&
+                          lecture.status !== "completed" && (
+                            <button
+                              onClick={() => handleSetUpMeeting(lecture.id)}
+                              disabled={settingUpId === lecture.id}
+                              className="text-blue-600 hover:underline text-xs disabled:opacity-50"
+                            >
+                              {settingUpId === lecture.id ? "Setting up…" : "Set up Meeting"}
+                            </button>
+                          )}
+                        {lecture.meeting_web_url && rowAvailability.state === "open" && (
                           <a
-                            href={lecture.host_start_url || lecture.meeting_web_url}
+                            href={lecture.meeting_web_url}
                             target="_blank"
                             rel="noreferrer"
                             className="text-blue-600 hover:underline text-xs"
                           >
-                            {lecture.host_start_url ? "Start" : "Join"}
+                            Join
                           </a>
                         )}
-                        <Link to={`/lecturer/lectures/${lecture.id}/roster`} className="text-blue-600 hover:underline text-xs">
-                          Roster
-                        </Link>
-                        {lecture.status !== "cancelled" && (
-                          <>
-                            <button onClick={() => setReschedulingLecture(lecture)} className="text-blue-600 hover:underline text-xs">
-                              Reschedule
-                            </button>
-                            <button onClick={() => setCancelingLecture(lecture)} className="text-red-500 hover:underline text-xs">
-                              Cancel
-                            </button>
-                          </>
+                        {lecture.meeting_web_url && rowAvailability.state === "too-early" && (
+                          <span className="text-gray-400 text-xs">
+                            Opens {rowAvailability.opensAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                          </span>
                         )}
+                        {lecture.meeting_web_url && rowAvailability.state === "ended" && (
+                          <span className="text-gray-400 text-xs">Meeting ended</span>
+                        )}
+                        <RowActionsMenu
+                          items={[
+                            { label: "Roster", to: `/lecturer/lectures/${lecture.id}/roster` },
+                            lecture.status !== "cancelled" &&
+                              lecture.status !== "completed" && {
+                                label: "Reschedule",
+                                onClick: () => setReschedulingLecture(lecture),
+                              },
+                            lecture.status !== "cancelled" &&
+                              lecture.status !== "completed" && {
+                                label: "Cancel",
+                                danger: true,
+                                onClick: () => setCancelingLecture(lecture),
+                              },
+                            lecture.status !== "cancelled" &&
+                              lecture.status !== "completed" && {
+                                label: "End Meeting",
+                                danger: true,
+                                onClick: () => setEndingLecture(lecture),
+                              },
+                            lecture.status === "completed" && {
+                              label: reopeningId === lecture.id ? "Reopening…" : "Reopen Meeting",
+                              disabled: reopeningId === lecture.id,
+                              onClick: () => handleReopen(lecture.id),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="6" className="text-center py-4 text-gray-500">

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 
 function formatTime(iso) {
   return iso
@@ -128,7 +129,12 @@ export default function LectureRoster() {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / {isAdmin ? "Lectures" : "Dashboard"} / Roster</p>
+          <Breadcrumbs
+            items={[
+              { label: isAdmin ? "Lectures" : "Dashboard", to: isAdmin ? "/admin/lectures" : "/lecturer/dashboard" },
+              { label: "Roster" },
+            ]}
+          />
           <h1 className="text-lg font-semibold">
             {lecture?.topic || "Roster"}
           </h1>
@@ -143,7 +149,7 @@ export default function LectureRoster() {
 
       <div className="bg-white rounded-[1.1rem] shadow-md p-4">
         <p className="text-xs text-gray-400 mb-4">
-          Attendance updates automatically from Zoom join/leave events.
+          Attendance updates automatically from the video call's join/leave events.
           {!isAdmin && " Use the manual override below only when face verification failed for a legitimate reason (e.g. bad lighting/camera)."}
           {minAttendanceMinutes != null && (
             <> Students must stay in the meeting at least {minAttendanceMinutes} min to be credited.</>

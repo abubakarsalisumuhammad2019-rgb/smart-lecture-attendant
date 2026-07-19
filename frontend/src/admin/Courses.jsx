@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { deriveLevelFromCode } from "../lib/courseHelpers";
 import { supabase } from "../lib/supabaseClient";
 import { CourseForm } from "../shared/CourseForm";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
@@ -41,6 +42,17 @@ export default function Courses() {
   const handleImportFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Guards against the same race CourseForm had: activeSession/activeSemester
+    // are fetched once on mount, so importing before that resolves (or if
+    // no active session is configured at all) would silently write rows
+    // with a blank academic_session, breaking the facilitator-assignment
+    // check in create-lecture later.
+    if (!activeSession || !activeSemester) {
+      setMessage("Active academic session/semester isn't set. Configure it in Admin → Settings first.");
+      e.target.value = "";
+      return;
+    }
 
     Papa.parse(file, {
       header: true,
@@ -107,7 +119,7 @@ export default function Courses() {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center text-white mb-6 gap-4">
         <div>
-          <p>Pages / Courses</p>
+          <Breadcrumbs items={[{ label: "Courses" }]} />
           <h1 className="text-lg font-semibold">Courses</h1>
         </div>
         <div className="flex gap-3">

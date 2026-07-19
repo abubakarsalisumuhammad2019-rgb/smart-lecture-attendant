@@ -16,7 +16,7 @@ export function CancelModal({ lecture, onClose, onCancelled }) {
     setSubmitting(true);
     setError('');
 
-    const { error: fnError } = await supabase.functions.invoke('zoom-update-meeting', {
+    const { error: fnError } = await supabase.functions.invoke('update-lecture-schedule', {
       body: { lecture_id: lecture.id, action: 'cancel', cancel_reason: reason.trim() },
     });
 
