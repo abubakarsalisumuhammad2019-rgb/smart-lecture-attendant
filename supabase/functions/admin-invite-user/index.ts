@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { handleCorsPreflight, json } from "./_shared/cors.ts";
 import { getServiceClient, getCallerProfile } from "./_shared/authContext.ts";
+import { generatePassword } from "./_shared/password.ts";
+import { sendPasswordEmail } from "./_shared/sendPasswordEmail.ts";
 
 Deno.serve(async (req: Request) => {
   const preflight = handleCorsPreflight(req);
@@ -52,20 +54,39 @@ Deno.serve(async (req: Request) => {
     };
 
     // Bulk imports pass a preset password (e.g. for lecturers onboarded from a
-    // CSV) -- creates the account directly, pre-confirmed, no magic-link email.
-    // A single "Invite" from the Users page omits password and falls back to
-    // the normal invite-by-email flow (Supabase emails a "set your password" link).
-    const { data, error } = password
-      ? await service.auth.admin.createUser({
-          email: finalEmail,
-          password,
-          email_confirm: true,
-          user_metadata: metadata,
-        })
-      : await service.auth.admin.inviteUserByEmail(finalEmail, { data: metadata });
+    // CSV) -- creates the account directly, pre-confirmed, no email. A single
+    // "Invite" from the Users page omits password: a random one is generated
+    // here and emailed directly via Brevo, since this app has no page to
+    // catch Supabase's own invite-link redirect and let someone set a
+    // password -- the account has to be usable the moment the email is read.
+    const isBulkImport = Boolean(password);
+    const finalPassword = isBulkImport ? password : generatePassword();
+
+    const { data, error } = await service.auth.admin.createUser({
+      email: finalEmail,
+      password: finalPassword,
+      email_confirm: true,
+      user_metadata: metadata,
+    });
 
     if (error) {
       return json({ error: "invite_failed", detail: error.message }, 500);
+    }
+
+    let emailWarning: string | undefined;
+    if (!isBulkImport) {
+      const emailResult = await sendPasswordEmail({
+        fullName: metadata.full_name,
+        role,
+        email: finalEmail,
+        password: finalPassword,
+      });
+      if (!emailResult.ok) {
+        // The account was created successfully either way -- don't fail the
+        // whole request over a delivery problem, but the admin needs the
+        // password some other way since it's otherwise unrecoverable.
+        emailWarning = emailResult.error;
+      }
     }
 
     // Admin-invited/created users skip the pending-approval step regardless of
@@ -88,7 +109,15 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return json({ user: data.user }, 200);
+    // If the password email failed to send, hand the generated password back
+    // in the response instead -- otherwise a delivery failure would create an
+    // account nobody, including the admin who just created it, can get into.
+    return json(
+      emailWarning
+        ? { user: data.user, email_warning: emailWarning, password: finalPassword }
+        : { user: data.user },
+      200,
+    );
   } catch (err) {
     return json({ error: "internal_error", detail: String(err) }, 500);
   }

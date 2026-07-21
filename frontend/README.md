@@ -103,9 +103,13 @@ Budget about 30-40 minutes for a full pass across all three roles.
    immediately.
 4. **Create a lecturer account.** Two ways:
    - **Users -> + Invite User** -> role Lecturer, fill name + email -> Send
-     Invite. This sends a **magic-link email**, so you won't be able to sign
-     in with this account unless you also check the Supabase Auth logs for
-     the link. For manual testing, prefer the next option instead.
+     Invite. This creates the account immediately and **emails the new
+     account's password directly** via Brevo, so it's usable as soon as the
+     email is read, no separate "set your password" step. Requires the
+     `admin-invite-user` edge function's `BREVO_API_KEY` secret to be set on
+     the Supabase project (already the case if Brevo delivery is working); if
+     delivery fails for any reason, the password is returned in the success
+     toast instead so the account isn't unreachable.
    - **Have the lecturer self-register**: open the app in a second
      browser/incognito window -> Signup -> "I am a... Lecturer" -> fill the
      form with a real password you'll remember -> Sign Up. This account lands
@@ -226,12 +230,14 @@ once for the actual meeting-join test.
   minimum attendance duration is set low (2 minutes) rather than something
   more realistic like 15, so a full test run fits inside the 5-minute
   window. Documented further in `CLAUDE.md`.
-- **"+ Invite User" (Users page) sends a magic-link email**, which won't
-  arrive anywhere useful without real email delivery configured. For manual
-  testing, prefer self-registration (lecturer or student) so you control the
-  password directly. "Bulk Import Lecturers" (also on the Users page) is the
-  one admin-side path that sets a real, known password (`123456`) directly,
-  useful if you need several lecturer accounts at once.
+- **"+ Invite User" (Users page) generates a random password server-side and
+  emails it directly via Brevo** (the `admin-invite-user` edge function needs
+  a `BREVO_API_KEY` secret set on the Supabase project for this). "Bulk
+  Import Lecturers" and "Bulk Import Lectures" (CSV imports, on the Users and
+  Lectures pages respectively) are unaffected by this, they still set the
+  shared, known password `123456` directly with no email, useful for
+  creating several lecturer accounts at once without depending on email
+  delivery.
 - **Push notifications, TMA deadlines, and offline PWA support are not
   implemented** in this build, despite being mentioned in the original
   project planning doc (`CLAUDE.md`), the project scope narrowed during

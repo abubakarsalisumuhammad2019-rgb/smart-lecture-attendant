@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import toast from "react-hot-toast";
 import { supabase } from "./lib/supabaseClient";
@@ -27,6 +27,20 @@ const Signin = () => {
   const [signingUp, setSigningUp] = useState(false);
 
   const updateForm = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+
+  // Confirming a signup redirects back here with Supabase's session tokens in
+  // the URL hash (#access_token=...&type=signup) -- supabase-js's own
+  // detectSessionInUrl silently consumes it into a real session, but nothing
+  // was ever showing the user that anything happened, so this generic
+  // Signin/Signup form was the whole landing experience. This just
+  // acknowledges it and makes sure Login mode (not the signup form) is what
+  // they see, without changing any of the actual sign-in logic.
+  useEffect(() => {
+    if (window.location.hash.includes("type=signup")) {
+      toast.success("Email confirmed. You can now sign in.");
+      setAuthMode("login");
+    }
+  }, []);
 
   // Programme options depend on the chosen department, so switching department
   // clears any previously selected programme that no longer applies.

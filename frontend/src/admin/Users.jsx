@@ -120,7 +120,7 @@ export default function Users() {
 
     setInviting(true);
     const invitedEmail = inviteRole === "student" ? deriveNounEmail(inviteMatricNumber) : inviteEmail;
-    const { error } = await supabase.functions.invoke("admin-invite-user", {
+    const { data, error } = await supabase.functions.invoke("admin-invite-user", {
       body: {
         email: invitedEmail,
         role: inviteRole,
@@ -131,8 +131,21 @@ export default function Users() {
     setInviting(false);
     if (error) {
       toast.error(await getFunctionErrorMessage(error));
+    } else if (data?.email_warning) {
+      // Account was created either way, but the password email couldn't be
+      // delivered -- the edge function hands the password back in this case
+      // so it isn't otherwise unrecoverable.
+      toast.error(
+        `Account created for ${invitedEmail}, but the password email failed to send. Their password is: ${data.password}`,
+        { duration: 15000 },
+      );
+      setInviteEmail("");
+      setInviteFullName("");
+      setInviteMatricNumber("");
+      setShowInvite(false);
+      loadData();
     } else {
-      toast.success(`Invited ${invitedEmail}.`);
+      toast.success(`Account created. Their password was emailed to ${invitedEmail}.`);
       setInviteEmail("");
       setInviteFullName("");
       setInviteMatricNumber("");
