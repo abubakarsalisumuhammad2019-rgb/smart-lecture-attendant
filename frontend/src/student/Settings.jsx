@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/AuthContext';
 import { PageLoader } from '../components/PageLoader';
 import { Breadcrumbs } from '../components/Breadcrumbs';
+import { PasswordInput } from '../shared/PasswordInput';
 
 export default function Settings() {
   const { profile, refreshProfile } = useAuth();
@@ -157,8 +158,7 @@ export default function Settings() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">New Password</label>
-            <input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"
@@ -166,8 +166,7 @@ export default function Settings() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">Retype Password</label>
-            <input
-              type="password"
+            <PasswordInput
               value={retypePassword}
               onChange={(e) => setRetypePassword(e.target.value)}
               className="h-11 px-3 border border-gray-200 rounded-xl text-sm w-full"

@@ -5,6 +5,7 @@ import { supabase } from "./lib/supabaseClient";
 import { DEPARTMENTS_BY_FACULTY, getFacultyForDepartment } from "./lib/departments";
 import { getProgrammesForDepartment } from "./lib/programmes";
 import { deriveNounEmail } from "./lib/nounEmail";
+import { PasswordInput } from "./shared/PasswordInput";
 
 const HOME_BY_ROLE = { admin: "/dashboard", lecturer: "/lecturer", student: "/student" };
 
@@ -245,8 +246,7 @@ const Signin = () => {
               </div>
               <p className="mb-1 font-medium text-gray-500">Password</p>
               <div className="mb-4">
-                <input
-                  type="password"
+                <PasswordInput
                   id="signin-password"
                   className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
                   placeholder="Enter your password"
@@ -413,8 +413,7 @@ const Signin = () => {
 
                     <div>
                       <p className="mb-1 font-medium text-gray-500 text-sm">Password</p>
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={form.password}
                         onChange={(e) => updateForm("password", e.target.value)}
                         className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
@@ -423,8 +422,7 @@ const Signin = () => {
                     </div>
                     <div>
                       <p className="mb-1 font-medium text-gray-500 text-sm">Retype Password</p>
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={form.retype}
                         onChange={(e) => updateForm("retype", e.target.value)}
                         className="w-full rounded-md border-2 border-gray-300 px-4 py-2"
